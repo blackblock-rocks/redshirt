@@ -1,12 +1,21 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "rocks.blackblock.example.mixin",
+  "package": "rocks.blackblock.redshirt.mixin",
   "compatibilityLevel": "JAVA_16",
   "mixins": [
+    "EntityTrackerUpdateS2CPacketAccessor",
+    "RegistryMixin_RemoveRedshirts",
+    "ServerMixin",
+    "ServerPlayNetworkHandlerMixin",
+    "ServerPlayNetworkHandlerMixin_PacketFaker",
+    "TACSMixin_RedshirtList",
+    "accessors.EntityTrackerEntryAccessor",
+    "accessors.PlayerListS2CPacketAccessor",
+    "accessors.PlayerSpawnS2CPacketAccessor",
+    "accessors.TACSAccessor"
   ],
   "client": [
-    "ExampleMixin"
   ],
   "injectors": {
     "defaultRequire": 1

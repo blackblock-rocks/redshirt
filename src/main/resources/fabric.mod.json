@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "id": "blackblock-example",
+  "id": "redshirt",
   "version": "${version}",
 
-  "name": "Blackblock Example Mod",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "name": "Blackblock Redshirt Mod",
+  "description": "This mod handles NPCs for Blackblock!",
   "authors": [
-    "Me!"
+    "Jelle De Loecker"
   ],
   "contact": {
     "homepage": "https://blackblock.rocks/",
-    "sources": "https://github.com/skerit/minecraft-mod-skeleton"
+    "sources": "https://github.com/skerit/redshirt"
   },
 
   "license": "GPL3",
@@ -19,7 +19,10 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "rocks.blackblock.example.ExampleMod"
+      "rocks.blackblock.redshirt.Redshirt"
+    ],
+    "polymc": [
+      "rocks.blackblock.redshirt.polymc.RedshirtPolyDisabler"
     ]
   },
   "mixins": [

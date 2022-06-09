@@ -1,8 +1,8 @@
 <h1 align="center">
-  <b>minecraft-mod-skeleton</b>
+  <b>redshirt</b>
 </h1>
 <div align="center">
-  👷🏼 A template for creating Minecraft mods
+  👷🏼 A Minecraft Fabric library for working with entities
 </div>
 <div align="center">
   <sub>
@@ -24,7 +24,7 @@ repositories {
 }
 
 dependencies {
-	modImplementation include("rocks.blackblock:PROJECT-NAME:0.1.0")
+	modImplementation include("rocks.blackblock:redshirt:0.1.0")
 }
 ```
 
