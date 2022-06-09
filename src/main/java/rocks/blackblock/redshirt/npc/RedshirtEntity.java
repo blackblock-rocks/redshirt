@@ -28,7 +28,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerChunkManager;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.server.world.ThreadedAnvilChunkStorage;
-import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
@@ -522,7 +521,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
 
         npc.updatePositionAndAngles(pos.getX(), pos.getY(), pos.getZ(), player.getYaw(), player.getPitch());
         npc.setHeadYaw(player.getHeadYaw());
-        npc.setCustomName(new LiteralText(name));
+        npc.setCustomName(Text.literal(name));
 
         return npc;
     }

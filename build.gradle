@@ -1,5 +1,5 @@
 plugins {
-	id 'fabric-loom' version '0.10-SNAPSHOT'
+	id 'fabric-loom' version '0.12-SNAPSHOT'
 	id 'maven-publish'
 }
 
@@ -19,6 +19,10 @@ repositories {
 
 	flatDir {
 		dirs '../PolyMc/build/libs/'
+	}
+
+	flatDir {
+		dirs '../DisguiseLib/fabric/build/libs/'
 	}
 
 	mavenCentral()

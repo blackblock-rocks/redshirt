@@ -8,7 +8,7 @@ import net.minecraft.world.World;
 public class FakePlayer extends PlayerEntity {
 
     public FakePlayer(World world, BlockPos pos, float yaw, GameProfile profile) {
-        super(world, pos, yaw, profile);
+        super(world, pos, yaw, profile, null);
     }
 
     @Override

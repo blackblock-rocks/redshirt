@@ -56,7 +56,7 @@ public abstract class ServerPlayNetworkHandlerMixin {
             PlayerListS2CPacket player_add_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.ADD_PLAYER);
 
             ((PlayerListS2CPacketAccessor) player_add_packet).setEntries(
-                    Arrays.asList(new PlayerListS2CPacket.Entry(profile, 0, GameMode.SURVIVAL, npc.getName()))
+                    Arrays.asList(new PlayerListS2CPacket.Entry(profile, 0, GameMode.SURVIVAL, npc.getName(), null))
             );
             this.sendPacket(player_add_packet);
 

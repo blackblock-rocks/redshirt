@@ -3,7 +3,8 @@ package rocks.blackblock.redshirt.server;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -17,7 +18,7 @@ public class Commands {
         CommandRegistrationCallback.EVENT.register(Commands::addCommands);
     }
 
-    private static void addCommands(CommandDispatcher<ServerCommandSource> dispatcher, boolean dedicated) {
+    private static void addCommands(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
 
         LiteralArgumentBuilder<ServerCommandSource> redshirt = literal("redshirt").requires(source -> source.hasPermissionLevel(2));
         LiteralArgumentBuilder<ServerCommandSource> create = literal("create");
