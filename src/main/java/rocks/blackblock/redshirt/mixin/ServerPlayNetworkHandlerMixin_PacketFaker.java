@@ -38,20 +38,13 @@ public class ServerPlayNetworkHandlerMixin_PacketFaker {
             Entity entity = world.getEntityById(entityPacket.id());
 
             if (entity instanceof RedshirtEntity redshirt) {
-                System.out.println("Got redshirt: " + redshirt);
 
                 PlayerEntity fake_player = redshirt.getFakePlayer();
 
                 var data = fake_player.getDataTracker().getAllEntries();
 
-                System.out.println(" -- Setting tracked values: " + data);
-
                 ((EntityTrackerUpdateS2CPacketAccessor) entityPacket).setTrackedValues(data);
-
-
             }
-
-
         }
 
     }

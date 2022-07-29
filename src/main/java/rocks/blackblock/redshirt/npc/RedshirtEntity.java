@@ -418,10 +418,6 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     @Override
     public ActionResult interactAt(PlayerEntity player, Vec3d pos, Hand hand) {
 
-        System.out.println("Interacting with NPC: " + player);
-        System.out.println(" -- AT: " + pos);
-        System.out.println(" -- HAND: " + hand);
-
         return ActionResult.PASS;
     }
 
@@ -511,8 +507,6 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     public static RedshirtEntity create(ServerPlayerEntity player, String name) {
 
         ServerWorld world = player.getWorld();
-
-        System.out.println("Creating new NPC " + name + " at " + world + " of " + REDSHIRT_TYPE);
 
         // Create the NPC
         RedshirtEntity npc = new RedshirtEntity(REDSHIRT_TYPE, player.getWorld());
