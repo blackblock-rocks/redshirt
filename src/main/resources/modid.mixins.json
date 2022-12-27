@@ -1,23 +1,20 @@
 {
-  "required": true,
-  "minVersion": "0.8",
-  "package": "rocks.blackblock.redshirt.mixin",
-  "compatibilityLevel": "JAVA_16",
-  "mixins": [
-    "EntityTrackerUpdateS2CPacketAccessor",
-    "RegistryMixin_RemoveRedshirts",
-    "ServerMixin",
-    "ServerPlayNetworkHandlerMixin",
-    "ServerPlayNetworkHandlerMixin_PacketFaker",
-    "TACSMixin_RedshirtList",
-    "accessors.EntityTrackerEntryAccessor",
-    "accessors.PlayerListS2CPacketAccessor",
-    "accessors.PlayerSpawnS2CPacketAccessor",
-    "accessors.TACSAccessor"
-  ],
-  "client": [
-  ],
-  "injectors": {
-    "defaultRequire": 1
+    "required": true,
+    "minVersion": "0.8",
+    "package": "rocks.blackblock.redshirt.mixin",
+    "compatibilityLevel": "JAVA_16",
+    "mixins": [
+        "ServerMixin",
+        "TACSMixin_RedshirtList",
+        "accessors.EntityTrackerEntryAccessor",
+        "accessors.PlayerEntityAccessor",
+        "accessors.PlayerListS2CPacketAccessor",
+        "accessors.PlayerSpawnS2CPacketAccessor",
+        "accessors.TACSAccessor"
+    ],
+    "client": [
+    ],
+    "injectors": {
+        "defaultRequire": 1
   }
 }

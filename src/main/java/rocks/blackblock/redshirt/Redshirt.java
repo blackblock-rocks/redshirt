@@ -7,12 +7,13 @@ import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
-import net.minecraft.loot.function.SetAttributesLootFunction;
 import net.minecraft.server.dedicated.MinecraftDedicatedServer;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rocks.blackblock.core.config.Config;
+import rocks.blackblock.redshirt.config.RedshirtConfig;
 import rocks.blackblock.redshirt.npc.RedshirtEntity;
 import rocks.blackblock.redshirt.server.Commands;
 
@@ -27,6 +28,8 @@ public class Redshirt implements ModInitializer {
 	public static final List<Identifier> REDSHIRT_TYPE_IDENTIFIERS = new ArrayList<>();
 	public static final List<EntityType<? extends RedshirtEntity>> REDSHIRT_TYPES = new ArrayList<>();
 	public static MinecraftDedicatedServer SERVER = null;
+
+	public static final RedshirtConfig CONFIG = Config.getOrCreateConfig("redshirt", RedshirtConfig::new);
 
 	/**
 	 * A list of all loaded RedshirtEntities

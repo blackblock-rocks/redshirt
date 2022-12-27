@@ -6,14 +6,14 @@ import net.minecraft.entity.EntityType;
 import rocks.blackblock.redshirt.Redshirt;
 import rocks.blackblock.redshirt.npc.RedshirtEntity;
 
-public class RedshirtPolyDisabler implements PolyMcEntrypoint {
+public class RedshirtPolyRegistration implements PolyMcEntrypoint {
 
     @Override
     public void registerPolys(PolyRegistry registry) {
 
         // Disable the polys
         for (EntityType<? extends RedshirtEntity> type : Redshirt.REDSHIRT_TYPES) {
-            registry.registerEntityPoly(type, (info, entity) -> null);
+            registry.registerEntityPoly(type, RedshirtWizard::new);
         }
     }
 }

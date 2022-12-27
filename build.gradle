@@ -22,7 +22,11 @@ repositories {
 	}
 
 	flatDir {
-		dirs '../DisguiseLib/fabric/build/libs/'
+		dirs '../blackblock-core/build/libs/'
+	}
+
+	flatDir {
+		dirs '../screenbuilder/build/libs/'
 	}
 
 	mavenCentral()
@@ -46,9 +50,10 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	modImplementation ("rocks.blackblock:screenbuilder:${project.screenbuilder}")
 
-	modImplementation "com.github.TheEpicBlock:polymc:${project.polymc_version}"
-	modCompileOnly "xyz.nucleoid:disguiselib-fabric:${rootProject.disguiselib_version}"
+	modImplementation "com.github.TheEpicBlock:PolyMc:${project.polymc_version}"
+	modImplementation ("rocks.blackblock:blackblock:${project.blackblock_core_version}")
 }
 
 processResources {

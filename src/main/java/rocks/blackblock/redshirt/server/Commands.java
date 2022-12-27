@@ -8,6 +8,9 @@ import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import rocks.blackblock.redshirt.Redshirt;
 import rocks.blackblock.redshirt.npc.RedshirtEntity;
 
 import static net.minecraft.server.command.CommandManager.literal;
@@ -22,6 +25,7 @@ public class Commands {
 
         LiteralArgumentBuilder<ServerCommandSource> redshirt = literal("redshirt").requires(source -> source.hasPermissionLevel(2));
         LiteralArgumentBuilder<ServerCommandSource> create = literal("create");
+        LiteralArgumentBuilder<ServerCommandSource> list = literal("list");
         var name = CommandManager.argument("name", StringArgumentType.greedyString());
 
         name.executes(context -> {
@@ -42,8 +46,26 @@ public class Commands {
             return 1;
         });
 
+        list.executes(context -> {
+
+            ServerCommandSource source = context.getSource();
+            ServerPlayerEntity player = source.getPlayer();
+
+            for (RedshirtEntity entity : Redshirt.REDSHIRTS) {
+                BlockPos pos = entity.getBlockPos();
+                String entity_name = entity.getEntityName();
+
+                source.sendFeedback(Text.literal(" - " + entity_name + ": " + pos), false);
+
+            }
+
+            return 1;
+
+        });
+
         create.then(name);
         redshirt.then(create);
+        redshirt.then(list);
         dispatcher.register(redshirt);
     }
 

@@ -8,21 +8,17 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.RangedAttackMob;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.WanderAroundGoal;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
+import net.minecraft.entity.attribute.EntityAttribute;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.Packet;
-import net.minecraft.network.packet.s2c.play.PlayerSpawnS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerChunkManager;
@@ -31,15 +27,16 @@ import net.minecraft.server.world.ThreadedAnvilChunkStorage;
 import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldView;
+import rocks.blackblock.core.utils.BBLog;
 import rocks.blackblock.redshirt.Redshirt;
-import rocks.blackblock.redshirt.compatibility.DisguiseLibCompatibility;
-import rocks.blackblock.redshirt.entity.FakePlayer;
 import rocks.blackblock.redshirt.helper.SkinHelper;
 import rocks.blackblock.redshirt.mixin.accessors.EntityTrackerEntryAccessor;
-import rocks.blackblock.redshirt.mixin.accessors.PlayerSpawnS2CPacketAccessor;
 import rocks.blackblock.redshirt.mixin.accessors.TACSAccessor;
+import rocks.blackblock.redshirt.polymc.RedshirtWizard;
 
 import java.util.NoSuchElementException;
 
@@ -55,14 +52,8 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     // The main entity type
     public static EntityType<RedshirtEntity> REDSHIRT_TYPE;
 
-    // Fake GameProfile for this NPC
-    private GameProfile game_profile;
-
     // The server this entity is on
     private final MinecraftServer server;
-
-    // The fake player we'll be using to represent this NPC
-    private PlayerEntity fake_player = null;
 
     // The current skin source
     private String skin_source = null;
@@ -70,117 +61,56 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     // The current skin as nbt data
     private NbtCompound skin_data = null;
 
-    /**
-     * Goals
-     * Public so they can be accessed from professions.
-     */
-    public final LookAtEntityGoal look_at_player_goal = new LookAtEntityGoal(this, PlayerEntity.class, 8.0F);
-    public final LookAroundGoal look_around_goal = new LookAroundGoal(this);
-    public final WanderAroundGoal wander_around_goal = new WanderAroundGoal(this, 1.0D, 30);
+    // Does this entity come from NBT?
+    protected boolean from_nbt = false;
 
-    // Temp
-    private boolean DISGUISELIB_LOADED = true;
+    // Wizards
+    private RedshirtWizard<? extends RedshirtEntity> wizard = null;
 
     public RedshirtEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
         super(entityType, world);
 
-        this.game_profile = new GameProfile(this.getUuid(), this.getName().getString());
-
-        // Let DisguiseLib know that about this entity
-        DisguiseLibCompatibility.setGameProfile(this, this.game_profile);
-
-        // Make these persistent by default
-        this.setPersistent();
-
-        this.goalSelector.add(8, look_at_player_goal);
-
-        this.setCustomNameVisible(true);
-        this.setCustomName(this.getName());
-
         // Get the actual server instance
         this.server = world.getServer();
-
-        // Create the fake player instance
-        this.initFakePlayer();
 
         // Register this Redshirt
         Redshirt.REDSHIRTS.add(this);
     }
 
     /**
-     * Create the fake player
+     * Attach a wizard
      *
      * @author  Jelle De Loecker   <jelle@elevenways.be>
-     * @since   0.1.0
+     * @since   0.4.0
      */
-    protected void initFakePlayer() {
-        this.fake_player = new FakePlayer(this.world, this.getBlockPos(), this.headYaw, this.getNewGameProfile());
-        //this.fake_player.getDataTracker().set(getPLAYER_MODE_CUSTOMISATION(), (byte) 0x7f);
+    public void setWizard(RedshirtWizard<? extends RedshirtEntity> wizard) {
+        this.wizard = wizard;
+
+        if (wizard != null && this.skin_data != null) {
+            this.wizard.setSkin(this.skin_data.getString("value"), this.skin_data.getString("signature"));
+        }
     }
 
     /**
-     * Get a new game profile for this player
+     * Make sure to update the wizard once this entity gets a new name
      *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
-     * @since   0.1.0
-     */
-    protected GameProfile getNewGameProfile() {
-        return new GameProfile(this.uuid, null);
-    }
-
-    /**
-     * Get the current game profile for this player
-     *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
-     * @since   0.1.0
-     */
-    public GameProfile getGameProfile() {
-        return this.game_profile;
-    }
-
-    /**
-     * Get the fake player
-     *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
-     * @since   0.1.0
-     */
-    public PlayerEntity getFakePlayer() {
-        return this.fake_player;
-    }
-
-    /**
-     * Set the name of this NPC
-     *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
-     * @since   0.1.0
-     *
-     * @param name new name to be set.
+     * @author   Jelle De Loecker   <jelle@elevenways.be>
+     * @since    0.1.0
      */
     @Override
     public void setCustomName(Text name) {
         super.setCustomName(name);
-        String profile_name = "Redshirt";
 
-        if (name != null) {
-            profile_name = name.getString();
-            if (name.getString().length() > 16) {
-                // Minecraft kicks you if player has name longer than 16 chars in GameProfile
-                profile_name = name.getString().substring(0, 16);
-            }
+        BBLog.log("Setting custom name on redshirt entity:", name);
+
+        if (this.wizard != null) {
+            this.wizard.setName(name);
         }
 
-        NbtCompound skin = null;
+        if (this.isCustomNameVisible()) {
 
-        if (this.game_profile != null) {
-            skin = this.getSkinNbt(this.game_profile);
         }
 
-        this.game_profile = new GameProfile(this.getUuid(), profile_name);
-
-        if (skin != null) {
-            this.setSkinFromNbt(skin);
-            this.sendProfileUpdates();
-        }
     }
 
     /**
@@ -200,6 +130,18 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
                 nbt.put("skin_data", this.skin_data);
             }
         }
+    }
+
+    /**
+     * Indicate this entity comes from NBT data
+     *
+     * @author   Jelle De Loecker   <jelle@elevenways.be>
+     * @since    0.1.0
+     */
+    @Override
+    public void readNbt(NbtCompound nbt) {
+        this.from_nbt = true;
+        super.readNbt(nbt);
     }
 
     /**
@@ -224,6 +166,28 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
                 this.setSkin(nbt.getString("skin_source"));
             }
         }
+    }
+
+    @Override
+    public float getPathfindingFavor(BlockPos pos, WorldView world) {
+        return -world.getPhototaxisFavor(pos);
+    }
+
+    /**
+     * Set an attribute
+     *
+     * @author  Jelle De Loecker   <jelle@elevenways.be>
+     * @since   0.4.0
+     */
+    public void setAttribute(EntityAttribute attribute_type, double new_value) {
+
+        EntityAttributeInstance attribute = this.getAttributeInstance(attribute_type);
+
+        if (attribute == null) {
+            return;
+        }
+
+        attribute.setBaseValue(new_value);
     }
 
     /**
@@ -287,6 +251,8 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
                 return;
             }
 
+            BBLog.log("Setting skin for " + this.getName() + " to " + value);
+
             NbtCompound skin_nbt = new NbtCompound();
             skin_nbt.putString("value", value);
             skin_nbt.putString("signature", signature);
@@ -328,26 +294,22 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @param   skin_nbt   The NBT compound with skin data
      */
     public void setSkinFromNbt(NbtCompound skin_nbt) {
-        // Clearing current skin
-        try {
-            this.skin_data = null;
-            PropertyMap map = this.game_profile.getProperties();
-            Property skin = map.get("textures").iterator().next();
-            map.remove("textures", skin);
-        } catch (NoSuchElementException ignored) { }
+
+        this.skin_data = null;
 
         // Setting the skin
         try {
             String value = skin_nbt.getString("value");
             String signature = skin_nbt.getString("signature");
+            this.skin_data = skin_nbt;
 
-            if (value != null && signature != null && !value.isEmpty() && !signature.isEmpty()) {
-                PropertyMap propertyMap = this.game_profile.getProperties();
-                propertyMap.put("textures", new Property("textures", value, signature));
+            if (this.wizard != null) {
+                this.wizard.setSkin(value, signature);
             }
 
-            this.skin_data = skin_nbt;
-        } catch (Error ignored) { }
+        } catch (Error ignored) {
+            BBLog.error("Error setting skin from NBT:", ignored);
+        }
     }
 
     /**
@@ -359,38 +321,17 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     public void sendProfileUpdates() {
         if (this.world.isClient()) return;
 
-        if (DISGUISELIB_LOADED) {
-            DisguiseLibCompatibility.setGameProfile(this, this.game_profile);
-        } else {
-            ServerChunkManager chunkManager = (ServerChunkManager) this.world.getChunkManager();
-            ThreadedAnvilChunkStorage chunkStorage = chunkManager.threadedAnvilChunkStorage;
-
-            EntityTrackerEntryAccessor trackerEntry = ((TACSAccessor) chunkStorage).getEntityTrackers().get(this.getId());
-            if (trackerEntry != null) {
-                trackerEntry.getListeners().forEach(tracking -> trackerEntry.getPlayer().startTracking(tracking.getPlayer()));
-            }
+        if (this.wizard != null) {
+            this.wizard.markDirty();
         }
-    }
 
-    /**
-     * Get the packet that will add this entity to the client
-     *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
-     * @since   0.1.0
-     */
-    @Override
-    public Packet<?> createSpawnPacket() {
-        PlayerSpawnS2CPacket spawn_packet = new PlayerSpawnS2CPacket(this.fake_player);
-        PlayerSpawnS2CPacketAccessor spawn_accessor = (PlayerSpawnS2CPacketAccessor) spawn_packet;
-        spawn_accessor.setId(this.getId());
-        spawn_accessor.setUuid(this.getUuid());
-        spawn_accessor.setX(this.getX());
-        spawn_accessor.setY(this.getY());
-        spawn_accessor.setZ(this.getZ());
-        spawn_accessor.setYaw((byte)((int)(this.getYaw() * 256.0F / 360.0F)));
-        spawn_accessor.setPitch((byte)((int)(this.getPitch() * 256.0F / 360.0F)));
+        ServerChunkManager chunkManager = (ServerChunkManager) this.world.getChunkManager();
+        ThreadedAnvilChunkStorage chunkStorage = chunkManager.threadedAnvilChunkStorage;
 
-        return spawn_packet;
+        EntityTrackerEntryAccessor trackerEntry = ((TACSAccessor) chunkStorage).getEntityTrackers().get(this.getId());
+        if (trackerEntry != null) {
+            trackerEntry.getListeners().forEach(tracking -> trackerEntry.getPlayer().startTracking(tracking.getPlayer()));
+        }
     }
 
     /**
@@ -399,14 +340,15 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.1.0
      */
-    @Override
+    /*@Override
     public DataTracker getDataTracker() {
+
         if (this.fake_player == null) {
             this.initFakePlayer();
         }
 
         return this.fake_player.getDataTracker();
-    }
+    }*/
 
     /**
      * Handles player interaction
@@ -417,7 +359,6 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     @Override
     public ActionResult interactAt(PlayerEntity player, Vec3d pos, Hand hand) {
-
         return ActionResult.PASS;
     }
 
@@ -429,7 +370,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     @Override
     public void attack(LivingEntity target, float pullProgress) {
-
+        BBLog.log("Called ranged attack method for", this, "but nothing was implemented");
     }
 
     /**
@@ -498,6 +439,11 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @since   0.1.0
      */
     public void shouldReallyHaveBeenRemoved() {
+
+        if (this.wizard != null) {
+            this.wizard.scheduleRemovePacket();
+        }
+
         Redshirt.REDSHIRTS.remove(this);
     }
 

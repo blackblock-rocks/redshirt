@@ -1,10 +1,10 @@
 package rocks.blackblock.redshirt.helper;
 
-import com.google.gson.JsonParser;
+import com.google.gson.JsonObject;
 import com.mojang.authlib.properties.Property;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.util.Pair;
 import org.jetbrains.annotations.Nullable;
+import rocks.blackblock.core.utils.BBLog;
+import rocks.blackblock.core.utils.JsonHelper;
 import rocks.blackblock.redshirt.Redshirt;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -30,6 +30,7 @@ public class SkinHelper {
 
     private static final ExecutorService THREADPOOL = Executors.newCachedThreadPool();
     private static final LRUCache<String, Property> SKIN_CACHE = new LRUCache<>(25);
+    private static String rincemaft_endpoint = null;
 
     /**
      * Log an error
@@ -61,9 +62,16 @@ public class SkinHelper {
             return;
         }
 
-        THREADPOOL.execute(() -> {
+        if (rincemaft_endpoint == null) {
+            Redshirt.CONFIG.afterLoad(() -> {
+                rincemaft_endpoint = Redshirt.CONFIG.getRincemaftEndpoint();
+                getSkin(skin_source, use_slim, callback);
+            });
 
-            Redshirt.LOGGER.info("Getting skin from " + skin_source);
+            return;
+        }
+
+        THREADPOOL.execute(() -> {
 
             final Property result;
 
@@ -77,7 +85,12 @@ public class SkinHelper {
                 result = fetchSkinByName(skin_source);
             }
 
-            SKIN_CACHE.put(key, result);
+            // Only cache successful skin requests
+            if (result == null) {
+                BBLog.error("Failed to get skin from '" + skin_source + "'");
+            } else {
+                SKIN_CACHE.put(key, result);
+            }
 
             Redshirt.SERVER.execute(() -> callback.onResult(result));
         });
@@ -106,7 +119,7 @@ public class SkinHelper {
         try (FileInputStream input = new FileInputStream(skinFile)) {
             if(input.read() == 137) {
                 try {
-                    String reply = urlRequest(new URL("https://api.mineskin.org/generate/upload?model=" + (useSlim ? "slim" : "steve")), false, skinFile);
+                    String reply = urlRequest(new URL(rincemaft_endpoint + "/api/v1/skin/sign"), false, skinFile);
                     return getSkinFromReply(reply);
                 } catch (IOException e) {
                     // Error uploading
@@ -129,7 +142,7 @@ public class SkinHelper {
     @Nullable
     private static Property fetchSkinByUrl(String skinUrl, boolean useSlim) {
         try {
-            URL url = new URL(String.format("https://api.mineskin.org/generate/url?url=%s&model=%s", skinUrl, useSlim ? "slim" : "steve"));
+            URL url = new URL(String.format(rincemaft_endpoint + "/api/v1/skin/sign?url=%s", skinUrl));
             String reply = urlRequest(url, false, null);
             return getSkinFromReply(reply);
         } catch (IOException e) {
@@ -147,14 +160,8 @@ public class SkinHelper {
     @Nullable
     private static Property fetchSkinByName(String playername) {
         try {
-            String reply = urlRequest(new URL("https://api.mojang.com/users/profiles/minecraft/" + playername), true, null);
-
-            if(reply == null || !reply.contains("id")) {
-                reply = urlRequest(new URL(String.format("http://skinsystem.ely.by/textures/signed/%s.png?proxy=true", playername)), false, null);
-            } else {
-                String uuid = JsonParser.parseString(reply).getAsJsonObject().get("id").getAsString();
-                reply = urlRequest(new URL("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid + "?unsigned=false"), true, null);
-            }
+            URL url = new URL(String.format(rincemaft_endpoint + "/api/v1/skin/sign?username=%s", playername));
+            String reply = urlRequest(url, false, null);
             return getSkinFromReply(reply);
         } catch (IOException e) {
             errorLog(e.getMessage());
@@ -171,12 +178,31 @@ public class SkinHelper {
      */
     @Nullable
     protected static Property getSkinFromReply(String reply) {
-        if(reply == null || reply.contains("error") || reply.isEmpty()) {
+
+        if (reply == null || reply.isEmpty()) {
             return null;
         }
 
-        String value = reply.split("\"value\":\"")[1].split("\"")[0];
-        String signature = reply.split("\"signature\":\"")[1].split("\"")[0];
+        JsonObject obj = JsonHelper.parse(reply);
+
+        if (obj.has("error") && obj.get("error").getAsBoolean()) {
+            return null;
+        }
+
+        JsonObject texture = obj.getAsJsonObject("texture");
+
+        if (texture == null) {
+            return null;
+        }
+
+        JsonObject skin = texture.getAsJsonObject("skin");
+
+        if (skin == null) {
+            return null;
+        }
+
+        String value = skin.get("value").getAsString();
+        String signature = skin.get("signature").getAsString();
 
         return new Property("textures", value, signature);
     }
@@ -241,6 +267,7 @@ public class SkinHelper {
         else {
             reply = getContent(connection);
         }
+
         return reply;
     }
 
