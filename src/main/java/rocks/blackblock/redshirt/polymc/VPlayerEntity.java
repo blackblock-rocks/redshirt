@@ -1,6 +1,5 @@
 package rocks.blackblock.redshirt.polymc;
 
-import com.google.common.collect.Lists;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
@@ -9,24 +8,27 @@ import io.github.theepicblock.polymc.api.wizard.PacketConsumer;
 import io.github.theepicblock.polymc.impl.poly.wizard.AbstractVirtualEntity;
 import io.github.theepicblock.polymc.impl.poly.wizard.EntityUtil;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.Packet;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.Team;
+import net.minecraft.text.LiteralTextContent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextContent;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
+import org.jetbrains.annotations.NotNull;
 import rocks.blackblock.core.BlackBlockCore;
 import rocks.blackblock.core.utils.BBLog;
+import rocks.blackblock.redshirt.entity.FakePlayer;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerEntityAccessor;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerListS2CPacketAccessor;
 import rocks.blackblock.screenbuilder.text.Font;
@@ -44,10 +46,12 @@ import java.util.UUID;
 public class VPlayerEntity extends AbstractVirtualEntity {
 
     public static final String EMPTY_PLAYER_NAME = "\u0020";
-
+    public static final Text EMPTY_PLAYER_NAME_TEXT = Text.of(EMPTY_PLAYER_NAME);
     public static TeamS2CPacket team_packet = null;
 
-    protected Text name = null;
+    @NotNull
+    protected Text name = EMPTY_PLAYER_NAME_TEXT;
+
     protected GameProfile profile = null;
     protected String skin_value = null;
     protected String skin_signature = null;
@@ -101,6 +105,17 @@ public class VPlayerEntity extends AbstractVirtualEntity {
         if (entity.hasCustomName()) {
             this.setName(entity.getName());
         }
+    }
+
+    /**
+     * Get the fake player instance
+     *
+     * @author   Jelle De Loecker   <jelle@elevenways.be>
+     * @since    0.4.0
+     */
+    public FakePlayer getFakePlayer() {
+        FakePlayer player = new FakePlayer(BlackBlockCore.getServer().getOverworld(), this.profile);
+        return player;
     }
 
     /**
@@ -167,7 +182,7 @@ public class VPlayerEntity extends AbstractVirtualEntity {
 
         String name;
 
-        if (this.name == null) {
+        if (this.name == EMPTY_PLAYER_NAME_TEXT) {
             name = "";
         } else {
             name = this.name.getString();
@@ -181,11 +196,51 @@ public class VPlayerEntity extends AbstractVirtualEntity {
             name = EMPTY_PLAYER_NAME;
         }
 
+        BBLog.log("Creating new game profile for", this, "with name", name);
+
         this.profile = new GameProfile(this.uuid, name);
 
         this.updateProfileSkin();
 
         return this.profile;
+    }
+
+    /**
+     * Safely set this name
+     *
+     * @author   Jelle De Loecker   <jelle@elevenways.be>
+     * @since    0.4.1
+     */
+    protected void setSafeName(Text name) {
+
+        if (name == null) {
+            BBLog.log("Tried to set a null name for a VPlayerEntity");
+            Thread.dumpStack();
+
+            name = EMPTY_PLAYER_NAME_TEXT;
+        }
+
+        TextContent content = name.getContent();
+        String string_content;
+
+        if (content instanceof LiteralTextContent literal) {
+            string_content = literal.string();
+
+            if (string_content == null) {
+                content = null;
+            }
+        }
+
+        BBLog.log("Setting safe name of", this, "to", name, content);
+
+        if (content == null) {
+            BBLog.log("Tried to set a name without content for a VPlayerEntity");
+            Thread.dumpStack();
+
+            name = EMPTY_PLAYER_NAME_TEXT;
+        }
+
+        this.name = name;
     }
 
     /**
@@ -196,7 +251,7 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @since    0.4.0
      */
     public void setName(Text name) {
-        this.name = name;
+        this.setSafeName(name);
         this.createNewGameProfile();
     }
 
@@ -208,7 +263,7 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      */
     public String getNameString() {
 
-        if (this.name != null) {
+        if (this.name != EMPTY_PLAYER_NAME_TEXT) {
             return this.name.getString();
         }
 
@@ -322,7 +377,7 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     @Override
     public void remove(PacketConsumer players) {
 
-        BBLog.log("Removing " + this.entity.getUuid());
+        BBLog.log("Removing VPlayer " + this.entity.getUuid());
 
         super.remove(players);
         this.sendTablistRemovePacket(players);
@@ -399,11 +454,8 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @since   0.4.0
      */
     protected void sendTablistRemovePacket(PacketConsumer players) {
-
-        PlayerListS2CPacket player_remove_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.REMOVE_PLAYER);
-        ((PlayerListS2CPacketAccessor) player_remove_packet).setEntries(
-                List.of(new PlayerListS2CPacket.Entry(this.profile, 0, GameMode.SURVIVAL, this.name, null))
-        );
+        BBLog.log("Sending remove packet for", this.name);
+        PlayerRemoveS2CPacket player_remove_packet = new PlayerRemoveS2CPacket(List.of(this.uuid));
         players.sendPacket(player_remove_packet);
     }
 
@@ -414,17 +466,21 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @since   0.4.0
      */
     protected void sendTablistAddPacket(PacketConsumer players) {
+
+        BBLog.log("Sending add packet for", this.name);
+        FakePlayer player = this.getFakePlayer();
+
         // Send the player info (adds it to the tablist. Should no longer be needed in 1.19.3)
-        PlayerListS2CPacket player_add_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.ADD_PLAYER);
+        PlayerListS2CPacket player_add_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.ADD_PLAYER, player);
         ((PlayerListS2CPacketAccessor) player_add_packet).setEntries(
-                List.of(new PlayerListS2CPacket.Entry(this.profile, 0, GameMode.SURVIVAL, this.name, null))
+                List.of(new PlayerListS2CPacket.Entry(this.uuid, this.profile, false, 0, GameMode.SURVIVAL, this.name, null))
         );
         players.sendPacket(player_add_packet);
 
         // Send the player info (adds it to the tablist. Should no longer be needed in 1.19.3)
-        PlayerListS2CPacket player_update_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.UPDATE_DISPLAY_NAME);
+        PlayerListS2CPacket player_update_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.UPDATE_DISPLAY_NAME, player);
         ((PlayerListS2CPacketAccessor) player_update_packet).setEntries(
-                List.of(new PlayerListS2CPacket.Entry(this.profile, 0, GameMode.SURVIVAL, this.name, null))
+                List.of(new PlayerListS2CPacket.Entry(this.uuid, this.profile, false, 0, GameMode.SURVIVAL, this.name, null))
         );
         players.sendPacket(player_update_packet);
     }

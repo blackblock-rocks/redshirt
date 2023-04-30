@@ -7,9 +7,10 @@ import net.minecraft.entity.EntityDimensions;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
 import net.minecraft.server.dedicated.MinecraftDedicatedServer;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.registry.Registry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rocks.blackblock.core.config.Config;
@@ -67,7 +68,7 @@ public class Redshirt implements ModInitializer {
 	) {
 
 		EntityType<TRedshirtEntity> NEW_ENTITY_TYPE = Registry.register(
-				Registry.ENTITY_TYPE,
+				Registries.ENTITY_TYPE,
 				entity_id,
 				FabricEntityTypeBuilder
 						.create(SpawnGroup.MISC, entity_factory)
