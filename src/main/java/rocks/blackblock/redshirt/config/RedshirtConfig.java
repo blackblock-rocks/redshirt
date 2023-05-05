@@ -19,8 +19,6 @@ public class RedshirtConfig extends Config {
      */
     public RedshirtConfig(String name) {
         super(name);
-        BBLog.log("Created Redshirt config!!", this);
-        Thread.dumpStack();
     }
 
     /**

@@ -196,8 +196,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
             name = EMPTY_PLAYER_NAME;
         }
 
-        BBLog.log("Creating new game profile for", this, "with name", name);
-
         this.profile = new GameProfile(this.uuid, name);
 
         this.updateProfileSkin();
@@ -214,9 +212,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     protected void setSafeName(Text name) {
 
         if (name == null) {
-            BBLog.log("Tried to set a null name for a VPlayerEntity");
-            Thread.dumpStack();
-
             name = EMPTY_PLAYER_NAME_TEXT;
         }
 
@@ -231,12 +226,7 @@ public class VPlayerEntity extends AbstractVirtualEntity {
             }
         }
 
-        BBLog.log("Setting safe name of", this, "to", name, content);
-
         if (content == null) {
-            BBLog.log("Tried to set a name without content for a VPlayerEntity");
-            Thread.dumpStack();
-
             name = EMPTY_PLAYER_NAME_TEXT;
         }
 
@@ -305,7 +295,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
         }
 
         if (this.has_spawned_once) {
-            BBLog.log(" -- Has spawned once before, so setting it as dirty");
             this.setDirty(true);
         }
     }
@@ -346,8 +335,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
 
         this.has_spawned_once = true;
         this.sendTablistAddPacket(players);
-
-        BBLog.log("Spawning VPlayer " + this.entity.getUuid() + " at", pos);
 
         players.sendPacket(this.createSpawnPacket(pos.getX(), pos.getY(), pos.getZ(), yaw, pitch));
 
@@ -454,7 +441,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @since   0.4.0
      */
     protected void sendTablistRemovePacket(PacketConsumer players) {
-        BBLog.log("Sending remove packet for", this.name);
         PlayerRemoveS2CPacket player_remove_packet = new PlayerRemoveS2CPacket(List.of(this.uuid));
         players.sendPacket(player_remove_packet);
     }
@@ -467,7 +453,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      */
     protected void sendTablistAddPacket(PacketConsumer players) {
 
-        BBLog.log("Sending add packet for", this.name);
         FakePlayer player = this.getFakePlayer();
 
         // Send the player info (adds it to the tablist. Should no longer be needed in 1.19.3)
@@ -505,16 +490,20 @@ public class VPlayerEntity extends AbstractVirtualEntity {
         this.sendTablistAddPacket(players);
 
         if (!remove) {
-            BBLog.log("Queueing tick timeout of 6 ticks");
-
             BlackBlockCore.onTickTimeout(() -> {
-                BBLog.log(" -- Adding VirtualPlayer again", this, "at", this.entity.getPos());
-
-
                 this.spawn(players, this.entity.getPos());
-
             }, 4);
         }
     }
 
+    /**
+     * Return a string representation of this virtual player
+     *
+     * @author  Jelle De Loecker   <jelle@elevenways.be>
+     * @since   0.4.1
+     */
+    @Override
+    public String toString() {
+        return "VPlayerEntity{'" + this.name + "',uuid=" + this.uuid + ",id=" + this.id + "}";
+    }
 }
