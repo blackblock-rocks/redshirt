@@ -363,9 +363,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      */
     @Override
     public void remove(PacketConsumer players) {
-
-        BBLog.log("Removing VPlayer " + this.entity.getUuid());
-
         super.remove(players);
         this.sendTablistRemovePacket(players);
     }

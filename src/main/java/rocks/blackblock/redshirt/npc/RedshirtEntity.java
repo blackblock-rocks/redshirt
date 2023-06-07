@@ -101,8 +101,6 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     public void setCustomName(Text name) {
         super.setCustomName(name);
 
-        BBLog.log("Setting custom name on redshirt entity:", name);
-
         if (this.wizard != null) {
             this.wizard.setName(name);
         }
@@ -319,13 +317,13 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @since   0.1.0
      */
     public void sendProfileUpdates() {
-        if (this.world.isClient()) return;
+        if (this.getWorld().isClient()) return;
 
         if (this.wizard != null) {
             this.wizard.markDirty();
         }
 
-        ServerChunkManager chunkManager = (ServerChunkManager) this.world.getChunkManager();
+        ServerChunkManager chunkManager = (ServerChunkManager) this.getWorld().getChunkManager();
         ThreadedAnvilChunkStorage chunkStorage = chunkManager.threadedAnvilChunkStorage;
 
         EntityTrackerEntryAccessor trackerEntry = ((TACSAccessor) chunkStorage).getEntityTrackers().get(this.getId());
@@ -452,7 +450,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     public static RedshirtEntity create(ServerPlayerEntity player, String name) {
 
-        ServerWorld world = player.getWorld();
+        ServerWorld world = player.getServerWorld();
 
         // Create the NPC
         RedshirtEntity npc = new RedshirtEntity(REDSHIRT_TYPE, player.getWorld());

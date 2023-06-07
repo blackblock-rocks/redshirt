@@ -55,7 +55,7 @@ public class Commands {
                 BlockPos pos = entity.getBlockPos();
                 String entity_name = entity.getEntityName();
 
-                source.sendFeedback(Text.literal(" - " + entity_name + ": " + pos), false);
+                source.sendFeedback(() -> Text.literal(" - " + entity_name + ": " + pos), false);
 
             }
 
