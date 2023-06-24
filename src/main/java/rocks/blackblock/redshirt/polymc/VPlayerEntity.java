@@ -5,6 +5,7 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import com.mojang.datafixers.util.Pair;
 import io.github.theepicblock.polymc.api.wizard.PacketConsumer;
+import io.github.theepicblock.polymc.api.wizard.UpdateInfo;
 import io.github.theepicblock.polymc.impl.poly.wizard.AbstractVirtualEntity;
 import io.github.theepicblock.polymc.impl.poly.wizard.EntityUtil;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -14,6 +15,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.encryption.PublicPlayerSession;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.scoreboard.Scoreboard;
@@ -22,13 +24,12 @@ import net.minecraft.text.LiteralTextContent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextContent;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.NotNull;
 import rocks.blackblock.core.BlackBlockCore;
 import rocks.blackblock.core.utils.BBLog;
-import rocks.blackblock.redshirt.entity.FakePlayer;
+import rocks.blackblock.redshirt.entity.FakeRedshirtPlayer;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerEntityAccessor;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerListS2CPacketAccessor;
 import rocks.blackblock.screenbuilder.text.Font;
@@ -43,47 +44,67 @@ import java.util.UUID;
  * @author   Jelle De Loecker   <jelle@elevenways.be>
  * @since    0.4.0
  */
-public class VPlayerEntity extends AbstractVirtualEntity {
+public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argable {
 
+    // The BBLog logger (that is optionally enabled)
+    private static final BBLog.Categorised LOGGER = BBLog.getCategorised("redshirt", "skinhelper");
+
+    // The "empty" name for the entity
     public static final String EMPTY_PLAYER_NAME = "\u0020";
+
+    // The text representation of the empty name
     public static final Text EMPTY_PLAYER_NAME_TEXT = Text.of(EMPTY_PLAYER_NAME);
+
+    // The team packet to send to the client
     public static TeamS2CPacket team_packet = null;
 
+    // The initial name of the virtual player is an "empty" looking string
     @NotNull
     protected Text name = EMPTY_PLAYER_NAME_TEXT;
 
+    // The game profile
     protected GameProfile profile = null;
+
+    // The skin value & signature
     protected String skin_value = null;
     protected String skin_signature = null;
+
+    // Is this player entity dirty?
     protected boolean is_dirty = false;
+
+    // Does this player entity need to be removed?
     protected boolean needs_remove = false;
+
+    // The real entity
     protected LivingEntity entity = null;
+
+    // Has this player entity been spawned once?
     protected boolean has_spawned_once = false;
 
-    /**
-     * Construct a new virtual player with automatically generated ids
-     *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
-     * @since    0.4.0
-     */
-    public VPlayerEntity() {
-        this(MathHelper.randomUuid());
-    }
+    // Has this player info been sent to the client yet?
+    protected boolean add_packet_has_been_sent = false;
 
-    /**
-     * Construct a new virtual player with a specific uuid
-     *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
-     * @since    0.4.0
-     */
-    public VPlayerEntity(UUID uuid) {
-        this(uuid, EntityUtil.getNewEntityId());
-    }
+    // Actions that have to be sent to everyone
+    protected List<Packet> queued_packets = new ArrayList<>(32);
+
+    // Does this still require a global spawn packet?
+    protected int requires_global_spawn_packet = 0;
+
+    // Does this need a datatracker update?
+    protected boolean needs_datatracker_update = false;
+
+    // Schedule a removal
+    protected boolean needs_temporary_removal = false;
+
+    // Register count
+    protected int register_count = 0;
+
+    // Updates without skin
+    protected int updates_without_skin = 0;
 
     /**
      * Construct a new virtual player with given ids
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public VPlayerEntity(UUID uuid, int id) {
@@ -94,12 +115,10 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     /**
      * Construct a new virtual player with given entity
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public VPlayerEntity(LivingEntity entity) {
-        super(entity.getUuid(), entity.getId());
-        this.createNewGameProfile();
+        this(entity.getUuid(), entity.getId());
         this.setEntity(entity);
 
         if (entity.hasCustomName()) {
@@ -108,21 +127,9 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     }
 
     /**
-     * Get the fake player instance
-     *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
-     * @since    0.4.0
-     */
-    public FakePlayer getFakePlayer() {
-        FakePlayer player = new FakePlayer(BlackBlockCore.getServer().getOverworld(), this.profile);
-        return player;
-    }
-
-    /**
      * Get the packet that will add a team that will make VPlayerEntities without a name
      * have no black bar above their head
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public TeamS2CPacket getEmptyTeamNamePacket() {
@@ -143,9 +150,41 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     }
 
     /**
+     * Should we send a gloal spawn packet?
+     *
+     * @since    0.5.0
+     */
+    public boolean requiresGlobalSpawnPacket() {
+        return this.requires_global_spawn_packet > 0;
+    }
+
+    /**
+     * Increase spawn packet requirement
+     *
+     * @since    0.5.0
+     */
+    public void increaseGlobalSpawnPacketRequirement(int amount) {
+        this.requires_global_spawn_packet += amount;
+    }
+
+    /**
+     * Consume a global spawn packet requirement
+     *
+     * @since    0.5.0
+     */
+    public boolean consumeGlobalSpawnPacketRequirement() {
+
+        if (this.requires_global_spawn_packet > 0) {
+            this.requires_global_spawn_packet--;
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Attach the real entity
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public void setEntity(LivingEntity entity) {
@@ -153,9 +192,8 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     }
 
     /**
-     * Mark this entity as being dirt
+     * Mark this entity as being dirty
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public void setDirty(boolean is_dirty) {
@@ -163,9 +201,18 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     }
 
     /**
+     * Make this entity dirty
+     *
+     * @since    0.4.0
+     */
+    public void makeDirty() {
+        this.setDirty(true);
+    }
+
+
+    /**
      * Is this entity dirty?
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public boolean isDirty() {
@@ -173,9 +220,17 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     }
 
     /**
-     * Get a new game profile for this player
+     * Create a new fake player instance with the current profile info
      *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
+     * @since    0.4.0
+     */
+    public FakeRedshirtPlayer getNewFakePlayer() {
+        return new FakeRedshirtPlayer(BlackBlockCore.getServer().getOverworld(), this.profile);
+    }
+
+    /**
+     * Create a new game profile for this player
+     *
      * @since   0.4.0
      */
     protected GameProfile createNewGameProfile() {
@@ -198,7 +253,7 @@ public class VPlayerEntity extends AbstractVirtualEntity {
 
         this.profile = new GameProfile(this.uuid, name);
 
-        this.updateProfileSkin();
+        this.updateSkinInGameProfile();
 
         return this.profile;
     }
@@ -243,6 +298,7 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     public void setName(Text name) {
         this.setSafeName(name);
         this.createNewGameProfile();
+        this.makeDirty();
     }
 
     /**
@@ -268,12 +324,20 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      */
     public void setSkin(String value, String signature) {
 
-        BBLog.attention("Setting skin of VPlayerEntity " + this.getNameString());
+        if (LOGGER.isEnabled()) {
+            BBLog.attention("Setting skin of VPlayerEntity " + this.getNameString());
+
+            if (value == null) {
+                BBLog.log(" -- Skin value is null!!!");
+            } else {
+                BBLog.log(" -- Value is " + value.length() + " chars long");
+            }
+        }
 
         this.skin_value = value;
         this.skin_signature = signature;
 
-        this.updateProfileSkin();
+        this.updateSkinInGameProfile();
     }
 
     /**
@@ -282,7 +346,12 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
-    private void updateProfileSkin() {
+    private void updateSkinInGameProfile() {
+
+        if (LOGGER.isEnabled()) {
+            BBLog.log(" -- Updating skin of", this);
+        }
+
         PropertyMap profile_properties = this.profile.getProperties();
 
         String value = this.skin_value;
@@ -294,7 +363,13 @@ public class VPlayerEntity extends AbstractVirtualEntity {
             profile_properties.removeAll("textures");
         }
 
-        if (this.has_spawned_once) {
+        if (LOGGER.isEnabled()) {
+            LOGGER.log(" -- Updated profile is now", profile_properties);
+            LOGGER.log("  -- Has spawned once?", this.has_spawned_once);
+            LOGGER.log("  -- Has been sent before?", this.add_packet_has_been_sent);
+        }
+
+        if (this.register_count > 0) {
             this.setDirty(true);
         }
     }
@@ -302,7 +377,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     /**
      * Return the entity type
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     @Override
@@ -313,12 +387,41 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     /**
      * Spawn this virtual player in the given player's client
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
+     * @deprecated
      * @since    0.4.0
      */
     @Override
     public void spawn(PacketConsumer player, Vec3d pos) {
-        this.spawn(player, pos, 0, 0, 0, Vec3d.ZERO);
+        this.sendToConsumers(player, pos);
+    }
+
+    /**
+     * Spawn this virtual player in the given player's client
+     *
+     * @deprecated
+     * @since    0.4.0
+     */
+    @Override
+    public void spawn(PacketConsumer players, Vec3d pos, float pitch, float yaw, int entityData, Vec3d velocity) {
+        this.sendToConsumers(players, pos, pitch, yaw, entityData, velocity);
+    }
+
+    /**
+     * Send this virtual player to the given consumers
+     *
+     * @since    0.4.1
+     */
+    public void sendToConsumers(PacketConsumer player, Vec3d pos) {
+        this.sendToConsumers(player, pos, 0, 0, 0, Vec3d.ZERO);
+    }
+
+    /**
+     * Send this entity to the given consumers for the first time
+     *
+     * @since    0.4.1
+     */
+    public void addConsumers(PacketConsumer consumers, Vec3d pos) {
+        this.sendToConsumers(consumers, pos, 0, 0, 0, Vec3d.ZERO);
     }
 
     /**
@@ -327,27 +430,33 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
-    @Override
-    public void spawn(PacketConsumer players, Vec3d pos, float pitch, float yaw, int entityData, Vec3d velocity) {
+    public void sendToConsumers(PacketConsumer players, Vec3d pos, float pitch, float yaw, int entityData, Vec3d velocity) {
 
         TeamS2CPacket packet = this.getEmptyTeamNamePacket();
         players.sendPacket(packet);
 
-        this.has_spawned_once = true;
-        this.sendTablistAddPacket(players);
+        if (!this.registerWithClient(players)) {
+            if (LOGGER.isEnabled()) {
+                LOGGER.log(" -- Failed to register with client, not sending to consumers");
+            }
+            return;
+        }
 
+        // Send the actual spawn packet
         players.sendPacket(this.createSpawnPacket(pos.getX(), pos.getY(), pos.getZ(), yaw, pitch));
 
         // Make sure all the skin layers are rendered
         this.sendTrackedDataUpdate(players, PlayerEntityAccessor.getPLAYER_MODEL_PARTS(), (byte) 0x7f);
 
+        // Send the equipment packets too
         this.sendEquipmentPacket(players);
+
+        this.sendDataTrackerUpdate(players);
     }
 
     /**
      * Send a TrackedData update
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public <T> void sendTrackedDataUpdate(PacketConsumer players, TrackedData<T> data, T value) {
@@ -358,19 +467,17 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     /**
      * Remove this entity for the given players
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     @Override
     public void remove(PacketConsumer players) {
         super.remove(players);
-        this.sendTablistRemovePacket(players);
+        this.sendClientRemovePacket(players);
     }
 
     /**
      * Create a spawn packet for this player
      *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.4.0
      */
     protected Packet<?> createSpawnPacket(double x, double y, double z, float yaw, float pitch) {
@@ -394,7 +501,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     /**
      * Create a packet with equipment information
      *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.4.0
      */
     protected EntityEquipmentUpdateS2CPacket createEquipmentPacket() {
@@ -417,7 +523,6 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     /**
      * Send an equipment packet
      *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.4.0
      */
     protected void sendEquipmentPacket(PacketConsumer players) {
@@ -432,15 +537,65 @@ public class VPlayerEntity extends AbstractVirtualEntity {
     }
 
     /**
+     * Schedule a temporary removal of this entity
+     *
+     * @since   0.5.0
+     */
+    protected void scheduleTemporaryRemoval(PacketConsumer players) {
+        this.needs_temporary_removal = true;
+        this.sendClientRemovePacket(players);
+    }
+
+    /**
      * Send a tablist remove packet
      *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.4.0
      */
-    protected void sendTablistRemovePacket(PacketConsumer players) {
+    protected void sendClientRemovePacket(PacketConsumer players) {
+       this.needs_temporary_removal = false;
+       this.sendActualClientRemovePackets(players);
+       this.increaseGlobalSpawnPacketRequirement(2);
+    }
+
+    /**
+     * Send an actual removal packet
+     *
+     * @since   0.4.0
+     */
+    protected void sendActualClientRemovePackets(PacketConsumer players) {
+        if (LOGGER.isEnabled()) {
+            LOGGER.log("  - Removing VPlayerEntity " + this.uuid + " - " + this.id);
+        }
+
+        players.sendDeathPacket(this.id);
+
+        // Remove the player from the client's player list
         PlayerRemoveS2CPacket player_remove_packet = new PlayerRemoveS2CPacket(List.of(this.uuid));
         players.sendPacket(player_remove_packet);
     }
+
+    /**
+     * Send a client add packet once the server is ready
+     *
+     * @since   0.4.0
+     */
+    protected boolean registerWithClient(PacketConsumer players) {
+
+        if (!BlackBlockCore.isReady()) {
+            this.increaseGlobalSpawnPacketRequirement(1);
+            return false;
+        }
+
+        if (this.skin_value == null && this.updates_without_skin < 10) {
+            this.increaseGlobalSpawnPacketRequirement(1);
+            return false;
+        }
+
+        PlayerListS2CPacket packet = this.createClientRegisterPacket();
+        players.sendPacket(packet);
+
+        return true;
+    };
 
     /**
      * Send a tablist add packet
@@ -448,23 +603,34 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.4.0
      */
-    protected void sendTablistAddPacket(PacketConsumer players) {
+    protected PlayerListS2CPacket createClientRegisterPacket() {
 
-        FakePlayer player = this.getFakePlayer();
+        this.add_packet_has_been_sent = true;
 
-        // Send the player info (adds it to the tablist. Should no longer be needed in 1.19.3)
-        PlayerListS2CPacket player_add_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.ADD_PLAYER, player);
+        FakeRedshirtPlayer fake_player = this.getNewFakePlayer();
+
+        // These players should not be listed (in the tab)
+        boolean listed = false;
+
+        // The ping can be zero
+        int ping = 0;
+
+        this.register_count++;
+
+        // There will be no chat session
+        PublicPlayerSession.Serialized chatSession = null;
+
+        if (LOGGER.isEnabled() && !this.profile.getProperties().containsKey("textures")) {
+            BBLog.attention("No textures found for " + this.uuid);
+        }
+
+        // Send the player info
+        PlayerListS2CPacket player_add_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.ADD_PLAYER, fake_player);
         ((PlayerListS2CPacketAccessor) player_add_packet).setEntries(
-                List.of(new PlayerListS2CPacket.Entry(this.uuid, this.profile, false, 0, GameMode.SURVIVAL, this.name, null))
+                List.of(new PlayerListS2CPacket.Entry(this.uuid, this.profile, listed, ping, GameMode.SURVIVAL, this.name, chatSession))
         );
-        players.sendPacket(player_add_packet);
 
-        // Send the player info (adds it to the tablist. Should no longer be needed in 1.19.3)
-        PlayerListS2CPacket player_update_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.UPDATE_DISPLAY_NAME, player);
-        ((PlayerListS2CPacketAccessor) player_update_packet).setEntries(
-                List.of(new PlayerListS2CPacket.Entry(this.uuid, this.profile, false, 0, GameMode.SURVIVAL, this.name, null))
-        );
-        players.sendPacket(player_update_packet);
+        return player_add_packet;
     }
 
     /**
@@ -473,23 +639,88 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.4.0
      */
-    protected void sendProfileUpdate(PacketConsumer players) {
+    protected void sendProfileUpdateWhenDirty(PacketConsumer players) {
 
-        boolean remove = false;
+        if (this.requiresGlobalSpawnPacket()) {
+            return;
+        }
 
-        if (this.entity != null && !this.entity.isAlive()) {
-            remove = true;
+        if (LOGGER.isEnabled()) {
+            LOGGER.log("Sending profile updates of", this, "to", players);
         }
 
         // Actually remove this entity for all the real players
-        this.remove(players);
+        // We'll send it again on the next update
+        this.scheduleTemporaryRemoval(players);
 
-        this.sendTablistAddPacket(players);
+        this.setDirty(false);
+    }
 
-        if (!remove) {
-            BlackBlockCore.onTickTimeout(() -> {
-                this.spawn(players, this.entity.getPos());
-            }, 4);
+    /**
+     * Schedule a datatracker update
+     *
+     * @since    0.5.0
+     */
+    public void scheduleDataTrackerUpdate() {
+        this.needs_datatracker_update = true;
+    }
+
+    /**
+     * Send a datatracker update
+     *
+     * @since    0.5.0
+     */
+    protected void sendDataTrackerUpdate(PacketConsumer players) {
+
+        if (this.entity == null) {
+            return;
+        }
+
+        if (this.requires_global_spawn_packet > 1) {
+            return;
+        }
+
+        if (this.needs_datatracker_update) {
+            this.needs_datatracker_update = false;
+        } else {
+            return;
+        }
+
+        if (LOGGER.isEnabled()) {
+            LOGGER.log("Sending datatracker updates of", this, "to", players);
+        }
+    }
+
+    /**
+     * Handle wizard updates
+     *
+     * @since   0.4.0
+     */
+    public void update(PacketConsumer players, UpdateInfo info) {
+
+        if (this.skin_value == null) {
+            this.updates_without_skin++;
+
+            if (this.updates_without_skin < 10) {
+                return;
+            }
+        }
+
+        if (this.needs_temporary_removal) {
+            this.sendActualClientRemovePackets(players);
+            return;
+        }
+
+        if (this.consumeGlobalSpawnPacketRequirement()) {
+            this.addConsumers(players, this.entity.getPos());
+        }
+
+        if (this.needs_datatracker_update) {
+            this.sendDataTrackerUpdate(players);
+        }
+
+        if (this.isDirty()) {
+            this.sendProfileUpdateWhenDirty(players);
         }
     }
 
@@ -501,6 +732,21 @@ public class VPlayerEntity extends AbstractVirtualEntity {
      */
     @Override
     public String toString() {
-        return "VPlayerEntity{'" + this.name + "',uuid=" + this.uuid + ",id=" + this.id + "}";
+        return this.toBBLogArg().toString();
+    }
+
+    /**
+     * Get an Arg representation of this instance
+     *
+     * @since    1.5.1
+     */
+    @Override
+    public BBLog.Arg toBBLogArg() {
+        return BBLog.createArg(this)
+            .add("name", this.name)
+            .add("uuid", this.uuid)
+            .add("id", this.id)
+            .add("entity", this.entity)
+            .add("profile", this.profile);
     }
 }

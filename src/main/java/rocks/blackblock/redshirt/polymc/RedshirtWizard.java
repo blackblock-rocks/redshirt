@@ -6,29 +6,69 @@ import io.github.theepicblock.polymc.api.wizard.WizardInfo;
 import io.github.theepicblock.polymc.impl.poly.entity.EntityWizard;
 import net.minecraft.text.Text;
 import rocks.blackblock.core.BlackBlockCore;
-import rocks.blackblock.core.utils.BBLog;
 import rocks.blackblock.redshirt.npc.RedshirtEntity;
 
+/**
+ * The wizard for handling Redshirt entities
+ *
+ * @author   Jelle De Loecker   <jelle@elevenways.be>
+ * @since    0.1.0
+ */
 public class RedshirtWizard<T extends RedshirtEntity> extends EntityWizard<T> {
 
+    // The actual virtual player entity
     private final VPlayerEntity virtual_player;
 
+    /**
+     * Initialize the wizard
+     *
+     * @since    0.1.0
+     */
     public RedshirtWizard(WizardInfo info, T entity) {
         super(info, entity);
+
+        // Create our virtual player
         this.virtual_player = new VPlayerEntity(entity);
+
+        // And inform the entity this is now the wizard
         entity.setWizard(this);
     }
 
-    @Override
-    public void addPlayer(PacketConsumer packetConsumer) {
-        this.virtual_player.spawn(packetConsumer, this.getEntity().getPos());
+    /**
+     * Schedule a datatracker update
+     *
+     * @since    0.5.0
+     */
+    public void scheduleDataTrackerUpdate() {
+        this.virtual_player.scheduleDataTrackerUpdate();
     }
 
+    /**
+     * Add the given player to this wizard:
+     * send them the entity spawn packet
+     *
+     * @since    0.1.0
+     */
+    @Override
+    public void addPlayer(PacketConsumer packetConsumer) {
+        this.virtual_player.addConsumers(packetConsumer, this.getEntity().getPos());
+    }
+
+    /**
+     * Remove this player from the given consumers
+     *
+     * @since    0.1.0
+     */
     @Override
     public void removePlayer(PacketConsumer packetConsumer) {
         this.virtual_player.remove(packetConsumer);
     }
 
+    /**
+     * Send a teleport packet to the given consumers
+     *
+     * @since    0.1.0
+     */
     @Override
     public void onMove(PacketConsumer players) {
         var entity = this.getEntity();
@@ -39,7 +79,6 @@ public class RedshirtWizard<T extends RedshirtEntity> extends EntityWizard<T> {
     /**
      * Set the skin to use
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public void setSkin(String value, String signature) {
@@ -49,47 +88,37 @@ public class RedshirtWizard<T extends RedshirtEntity> extends EntityWizard<T> {
     /**
      * Set the new name of the virtual player
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public void setName(Text name) {
         this.virtual_player.setName(name);
-        this.markDirty();
     }
 
     /**
      * Request updates
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public void markDirty() {
-        this.virtual_player.setDirty(true);
+        this.virtual_player.makeDirty();
     }
 
     /**
      * Schedule a remove packet
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     public void scheduleRemovePacket() {
-        BlackBlockCore.onTickTimeout(() -> {
-            this.virtual_player.setDirty(true);
-        }, 20);
+        BlackBlockCore.onTickTimeout(this.virtual_player::makeDirty, 20);
     }
 
     /**
      * Check for updates
      *
-     * @author   Jelle De Loecker   <jelle@elevenways.be>
      * @since    0.4.0
      */
     @Override
     public void update(PacketConsumer players, UpdateInfo info) {
-        if (this.virtual_player.isDirty()) {
-            this.virtual_player.sendProfileUpdate(players);
-            this.virtual_player.setDirty(false);
-        }
+        this.virtual_player.update(players, info);
     }
 }

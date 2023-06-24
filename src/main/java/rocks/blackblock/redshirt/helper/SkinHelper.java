@@ -28,6 +28,8 @@ import java.util.concurrent.Executors;
  */
 public class SkinHelper {
 
+    private static final BBLog.Categorised LOGGER = BBLog.getCategorised("redshirt", "skinhelper");
+
     private static final ExecutorService THREADPOOL = Executors.newCachedThreadPool();
     private static final LRUCache<String, Property> SKIN_CACHE = new LRUCache<>(25);
     private static String rincemaft_endpoint = null;
@@ -60,6 +62,12 @@ public class SkinHelper {
         if (SKIN_CACHE.containsKey(key)) {
             callback.onResult(SKIN_CACHE.get(key));
             return;
+        }
+
+        if (LOGGER.isEnabled()) {
+            LOGGER.log("Getting skin with source argument '" + skin_source + "'");
+            LOGGER.log("  - Use slim:", use_slim);
+            Thread.dumpStack();
         }
 
         if (rincemaft_endpoint == null) {
@@ -159,6 +167,11 @@ public class SkinHelper {
      */
     @Nullable
     private static Property fetchSkinByName(String playername) {
+
+        if (playername == null || playername.isBlank()) {
+            return null;
+        }
+
         try {
             URL url = new URL(String.format(rincemaft_endpoint + "/api/v1/skin/sign?username=%s", playername));
             String reply = urlRequest(url, false, null);
@@ -227,7 +240,8 @@ public class SkinHelper {
             httpsConnection.setDoOutput(true);
             httpsConnection.setDoInput(true);
             httpsConnection.setRequestMethod(useGetMethod ? "GET" : "POST");
-            if(image != null) {
+
+            if (image != null) {
                 String boundary = UUID.randomUUID().toString();
                 httpsConnection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
                 httpsConnection.setRequestProperty("User-Agent", "User-Agent");
@@ -260,8 +274,19 @@ public class SkinHelper {
                 writer.append("--").append(boundary).append("--").append(LINE);
                 writer.close();
             }
-            if(httpsConnection.getResponseCode() == HttpURLConnection.HTTP_OK)
+
+            if (LOGGER.isEnabled()) {
+                LOGGER.log("Requesting", url);
+                LOGGER.log("  - Method:", httpsConnection.getRequestMethod());
+                LOGGER.log("  - Content type:", httpsConnection.getContentType());
+                LOGGER.log("  - Image:", image);
+                LOGGER.log(" -- Response:", httpsConnection.getResponseCode());
+            }
+
+            if (httpsConnection.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 reply = getContent(connection);
+            }
+
             httpsConnection.disconnect();
         }
         else {

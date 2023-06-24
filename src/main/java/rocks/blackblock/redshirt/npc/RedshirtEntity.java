@@ -3,10 +3,7 @@ package rocks.blackblock.redshirt.npc;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
-import net.minecraft.entity.CrossbowUser;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.RangedAttackMob;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttribute;
@@ -49,6 +46,8 @@ import java.util.NoSuchElementException;
  */
 public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, RangedAttackMob {
 
+    private static final BBLog.Categorised LOGGER = BBLog.getCategorised("redshirt");
+
     // The main entity type
     public static EntityType<RedshirtEntity> REDSHIRT_TYPE;
 
@@ -58,8 +57,11 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     // The current skin source
     private String skin_source = null;
 
-    // The current skin as nbt data
-    private NbtCompound skin_data = null;
+    // The current skin value
+    private String skin_value = null;
+
+    // The current skin signature
+    private String skin_signature = null;
 
     // Does this entity come from NBT?
     protected boolean from_nbt = false;
@@ -84,11 +86,14 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @since   0.4.0
      */
     public void setWizard(RedshirtWizard<? extends RedshirtEntity> wizard) {
+
         this.wizard = wizard;
 
-        if (wizard != null && this.skin_data != null) {
-            this.wizard.setSkin(this.skin_data.getString("value"), this.skin_data.getString("signature"));
+        if (wizard == null || this.skin_value == null || this.skin_signature == null) {
+            return;
         }
+
+        this.wizard.setSkin(this.skin_value, this.skin_signature);
     }
 
     /**
@@ -124,8 +129,11 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
         if (this.skin_source != null) {
             nbt.putString("skin_source", this.skin_source);
 
-            if (this.skin_data != null) {
-                nbt.put("skin_data", this.skin_data);
+            if (this.skin_value != null && this.skin_signature != null) {
+                NbtCompound skin_data = new NbtCompound();
+                skin_data.putString("value", this.skin_value);
+                skin_data.putString("signature", this.skin_signature);
+                nbt.put("skin_data", skin_data);
             }
         }
     }
@@ -158,10 +166,10 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
                 this.setSkinFromNbt(nbt.getCompound("skin_data"));
             }
 
-            if (this.skin_data != null) {
-                this.skin_source = nbt.getString("skin_source");
-            } else {
-                this.setSkin(nbt.getString("skin_source"));
+            this.skin_source = nbt.getString("skin_source");
+
+            if (this.skin_value == null) {
+                this.setSkin(this.skin_source);
             }
         }
     }
@@ -223,7 +231,10 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     public void setSkin(String skin_source, Boolean use_slim) {
 
-        if (skin_source == null) {
+        if (skin_source == null || skin_source.isBlank()) {
+            if (LOGGER.isEnabled()) {
+                LOGGER.log("RedshirtEntity", this, "has no skin source");
+            }
             return;
         }
 
@@ -249,14 +260,15 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
                 return;
             }
 
-            BBLog.log("Setting skin for " + this.getName() + " to " + value);
+            if (LOGGER.isEnabled()) {
+                BBLog.log("Setting skin for " + this.getEntityName() + " to " + value);
+            }
 
             NbtCompound skin_nbt = new NbtCompound();
             skin_nbt.putString("value", value);
             skin_nbt.putString("signature", signature);
 
             this.setSkinFromNbt(skin_nbt);
-            this.sendProfileUpdates();
         });
     }
 
@@ -293,21 +305,31 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     public void setSkinFromNbt(NbtCompound skin_nbt) {
 
-        this.skin_data = null;
+        this.skin_value = null;
+        this.skin_signature = null;
 
         // Setting the skin
         try {
             String value = skin_nbt.getString("value");
             String signature = skin_nbt.getString("signature");
-            this.skin_data = skin_nbt;
 
-            if (this.wizard != null) {
-                this.wizard.setSkin(value, signature);
+            if (value != null && !value.isBlank()) {
+                this.skin_value = value;
+            }
+
+            if (signature != null && !signature.isBlank()) {
+                this.skin_signature = signature;
+            }
+
+            if (this.wizard != null && this.skin_value != null && this.skin_signature != null) {
+                this.wizard.setSkin(this.skin_value, this.skin_signature);
             }
 
         } catch (Error ignored) {
             BBLog.error("Error setting skin from NBT:", ignored);
         }
+
+        this.sendProfileUpdates();
     }
 
     /**
@@ -317,7 +339,10 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @since   0.1.0
      */
     public void sendProfileUpdates() {
-        if (this.getWorld().isClient()) return;
+
+        if (this.getWorld().isClient()) {
+            return;
+        }
 
         if (this.wizard != null) {
             this.wizard.markDirty();
@@ -443,6 +468,20 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
         }
 
         Redshirt.REDSHIRTS.remove(this);
+    }
+
+    /**
+     * Queue a datatracker update
+     *
+     * @since   0.5.0
+     */
+    @Override
+    public void setPose(EntityPose pose) {
+        super.setPose(pose);
+
+        if (this.wizard != null) {
+            this.wizard.scheduleDataTrackerUpdate();
+        }
     }
 
     /**

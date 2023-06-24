@@ -6,6 +6,7 @@
     "mixins": [
         "ServerMixin",
         "TACSMixin_RedshirtList",
+        "accessors.DataTrackerAccessor",
         "accessors.EntityTrackerEntryAccessor",
         "accessors.PlayerEntityAccessor",
         "accessors.PlayerListS2CPacketAccessor",
