@@ -10,7 +10,6 @@
         "accessors.EntityTrackerEntryAccessor",
         "accessors.PlayerEntityAccessor",
         "accessors.PlayerListS2CPacketAccessor",
-        "accessors.PlayerSpawnS2CPacketAccessor",
         "accessors.TACSAccessor"
     ],
     "client": [

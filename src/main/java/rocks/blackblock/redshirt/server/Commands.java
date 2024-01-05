@@ -53,7 +53,7 @@ public class Commands {
 
             for (RedshirtEntity entity : Redshirt.REDSHIRTS) {
                 BlockPos pos = entity.getBlockPos();
-                String entity_name = entity.getEntityName();
+                String entity_name = entity.getNameForScoreboard();
 
                 source.sendFeedback(() -> Text.literal(" - " + entity_name + ": " + pos), false);
 

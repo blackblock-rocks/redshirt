@@ -252,8 +252,8 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
                 return;
             }
 
-            String value = result.getValue();
-            String signature = result.getSignature();
+            String value = result.value();
+            String signature = result.signature();
 
             if (value.isBlank() || signature.isBlank()) {
                 Redshirt.LOGGER.warn("Failed to get valid skin from " + skin_source);
@@ -261,7 +261,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
             }
 
             if (LOGGER.isEnabled()) {
-                BBLog.log("Setting skin for " + this.getEntityName() + " to " + value);
+                BBLog.log("Setting skin for " + this.getNameForScoreboard() + " to " + value);
             }
 
             NbtCompound skin_nbt = new NbtCompound();
@@ -288,8 +288,8 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
             PropertyMap propertyMap = profile.getProperties();
             Property skin = propertyMap.get("textures").iterator().next();
 
-            skin_nbt.putString("value", skin.getValue());
-            skin_nbt.putString("signature", skin.getSignature());
+            skin_nbt.putString("value", skin.value());
+            skin_nbt.putString("signature", skin.signature());
         } catch (NoSuchElementException ignored) { }
 
         return skin_nbt;
@@ -392,7 +392,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @param   pullProgress
      */
     @Override
-    public void attack(LivingEntity target, float pullProgress) {
+    public void shootAt(LivingEntity target, float pullProgress) {
         BBLog.log("Called ranged attack method for", this, "but nothing was implemented");
     }
 

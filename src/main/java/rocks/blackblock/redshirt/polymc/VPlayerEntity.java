@@ -18,12 +18,14 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.encryption.PublicPlayerSession;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.*;
+import net.minecraft.registry.Registries;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.Team;
-import net.minecraft.text.LiteralTextContent;
 import net.minecraft.text.MutableText;
+import net.minecraft.text.PlainTextContent;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextContent;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.NotNull;
@@ -273,8 +275,8 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
         TextContent content = name.getContent();
         String string_content;
 
-        if (content instanceof LiteralTextContent literal) {
-            string_content = literal.string();
+        if (content instanceof PlainTextContent plain) {
+            string_content = plain.string();
 
             if (string_content == null) {
                 content = null;
@@ -487,15 +489,27 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
 
         // Use random uuid? MathHelper.randomUuid()
         buffer.writeUuid(this.uuid);
+        buffer.writeRegistryValue(Registries.ENTITY_TYPE, EntityType.PLAYER);
         buffer.writeDouble(x);
         buffer.writeDouble(y);
         buffer.writeDouble(z);
-        buffer.writeByte((byte)((int)(yaw * 256.0F / 360.0F)));
         buffer.writeByte((byte)((int)(pitch * 256.0F / 360.0F)));
+        buffer.writeByte((byte)((int)(yaw * 256.0F / 360.0F)));
+
+        float head_yaw = this.entity.getHeadYaw();
+        buffer.writeByte((byte) MathHelper.floor(head_yaw * 256.0 / 360.0));
+
+        // Entity data?
+        buffer.writeVarInt(0);
+
+        // Velocity
+        buffer.writeShort(0);
+        buffer.writeShort(0);
+        buffer.writeShort(0);
 
         buffer.resetReaderIndex();
 
-        return new PlayerSpawnS2CPacket(buffer);
+        return new EntitySpawnS2CPacket(buffer);
     }
 
     /**
