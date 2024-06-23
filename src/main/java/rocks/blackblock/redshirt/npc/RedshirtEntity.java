@@ -28,7 +28,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
-import rocks.blackblock.core.utils.BBLog;
+import rocks.blackblock.bib.util.BibLog;
 import rocks.blackblock.redshirt.Redshirt;
 import rocks.blackblock.redshirt.helper.SkinHelper;
 import rocks.blackblock.redshirt.mixin.accessors.EntityTrackerEntryAccessor;
@@ -46,7 +46,7 @@ import java.util.NoSuchElementException;
  */
 public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, RangedAttackMob {
 
-    private static final BBLog.Categorised LOGGER = BBLog.getCategorised("redshirt");
+    private static final BibLog.Categorised LOGGER = BibLog.getCategorised("redshirt");
 
     // The main entity type
     public static EntityType<RedshirtEntity> REDSHIRT_TYPE;
@@ -180,23 +180,6 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     }
 
     /**
-     * Set an attribute
-     *
-     * @author  Jelle De Loecker   <jelle@elevenways.be>
-     * @since   0.4.0
-     */
-    public void setAttribute(EntityAttribute attribute_type, double new_value) {
-
-        EntityAttributeInstance attribute = this.getAttributeInstance(attribute_type);
-
-        if (attribute == null) {
-            return;
-        }
-
-        attribute.setBaseValue(new_value);
-    }
-
-    /**
      * Reload the skin
      *
      * @author  Jelle De Loecker   <jelle@elevenways.be>
@@ -261,7 +244,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
             }
 
             if (LOGGER.isEnabled()) {
-                BBLog.log("Setting skin for " + this.getNameForScoreboard() + " to " + value);
+                BibLog.log("Setting skin for " + this.getNameForScoreboard() + " to " + value);
             }
 
             NbtCompound skin_nbt = new NbtCompound();
@@ -326,7 +309,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
             }
 
         } catch (Error ignored) {
-            BBLog.error("Error setting skin from NBT:", ignored);
+            BibLog.error("Error setting skin from NBT:", ignored);
         }
 
         this.sendProfileUpdates();
@@ -393,7 +376,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     @Override
     public void shootAt(LivingEntity target, float pullProgress) {
-        BBLog.log("Called ranged attack method for", this, "but nothing was implemented");
+        BibLog.log("Called ranged attack method for", this, "but nothing was implemented");
     }
 
     /**
@@ -403,19 +386,6 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     @Override
     public void setCharging(boolean charging) {
-
-    }
-
-    /**
-     * Crossbow shoot method method
-     *
-     * @param   target
-     * @param   crossbow
-     * @param   projectile
-     * @param   multiShotSpray
-     */
-    @Override
-    public void shoot(LivingEntity target, ItemStack crossbow, ProjectileEntity projectile, float multiShotSpray) {
 
     }
 

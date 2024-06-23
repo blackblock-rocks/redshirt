@@ -1,45 +1,122 @@
 plugins {
-	id 'fabric-loom' version '1.2-SNAPSHOT'
+	id 'fabric-loom' version '1.6-SNAPSHOT'
 	id 'maven-publish'
+	id 'org.checkerframework' version '0.6.40'
 }
 
-sourceCompatibility = JavaVersion.VERSION_17
-targetCompatibility = JavaVersion.VERSION_17
+apply plugin: 'org.checkerframework'
+
+/**
+ * Version setup
+ */
+def baseVersion = project.mod_version
+def baseGroup = project.maven_group
+def localPropertiesFile = file('local.properties')
+def localProperties = new Properties()
+
+if (localPropertiesFile.exists()) {
+	localPropertiesFile.withInputStream { stream ->
+		localProperties.load(stream)
+	}
+}
+
+def envVars = System.getenv()
+def currentEnvironment = envVars.getOrDefault("ENV", localProperties.getProperty("environment", "dev"))
+def isDevelopment = currentEnvironment == "dev"
+def localRepoDir = null
+ext.versionModifier = null
+
+if (localProperties.hasProperty("localRepoDir")) {
+	localRepoDir = localProperties.getProperty("localRepoDir")
+} else if (project.hasProperty("localRepoDir")) {
+	localRepoDir = project.findProperty("localRepoDir")
+}
+
+if (isDevelopment) {
+	versionModifier = "-SNAPSHOT"
+}
+
+def constructVersion(baseVersion) {
+	def result = baseVersion + versionModifier
+	return result
+}
 
 archivesBaseName = project.archives_base_name
-version = project.mod_version
-group = project.maven_group
+version = constructVersion(baseVersion)
+group = baseGroup
+
+println("Info: currentEnvironment = $currentEnvironment")
+println("Info: isDevelopment = $isDevelopment")
+println("Info: localRepoDir = $localRepoDir")
+println("Info: versionModifier = $versionModifier")
+println("Info: version = " + version)
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
 
 	flatDir {
 		dirs '../PolyMc/build/libs/'
 	}
 
-	flatDir {
-		dirs '../blackblock-core/build/libs/'
-	}
-
-	flatDir {
-		dirs '../screenbuilder/build/libs/'
-	}
-
 	mavenCentral()
-
-	maven {
-		name = "Nucleoid maven"
-		url = "https://maven.nucleoid.xyz/"
-	}
 
 	maven {
 		url 'https://jitpack.io'
 	}
 
+	// Lucko (spark)
+	maven {
+		url 'https://oss.sonatype.org/content/repositories/snapshots'
+	}
+
+	// NucleoidMC
+	maven {
+		url "https://maven.nucleoid.xyz/"
+	}
+
+	// PolyMC
+	maven {
+		url "https://maven.theepicblock.nl"
+		content {
+			includeGroup("nl.theepicblock")
+		}
+	}
+
+	// Blackblock
+	maven {
+		url 'https://maven.blackblock.rocks/releases'
+	}
+
+	// Modrinth offers a maven repository
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = "Modrinth"
+				url = "https://api.modrinth.com/maven"
+			}
+		}
+		filter {
+			includeGroup "maven.modrinth"
+		}
+	}
+
+	// Curseforge also offers a maven repository,
+	// though dependencies have to use file id's
+	exclusiveContent {
+		forRepository {
+			maven {
+				url "https://cursemaven.com"
+			}
+		}
+		filter {
+			includeGroup "curse.maven"
+		}
+	}
+
+	if (isDevelopment && localRepoDir) {
+		maven {
+			url localRepoDir
+		}
+	}
 }
 
 dependencies {
@@ -50,10 +127,18 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	modImplementation ("rocks.blackblock:screenbuilder:${project.screenbuilder}")
 
-	modImplementation "com.github.TheEpicBlock:PolyMc:${project.polymc_version}"
-	modImplementation ("rocks.blackblock:blackblock:${project.blackblock_core_version}")
+	// PolyMC, which allows us to use modded blocks with vanilla clients
+	modApi ("com.github.TheEpicBlock:PolyMc:${project.polymc_version}")
+
+	// Blackblock's PolyMC-Plus: our additions on top of PolyMC
+	modApi ("rocks.blackblock:polymc-plus:${constructVersion(project.polymc_plus_version)}")
+
+	// Blackblock's Screenbuilder: helps us to create GUIs
+	modApi include("rocks.blackblock:screenbuilder:${constructVersion(project.screenbuilder_version)}")
+
+	// Blackblock's main library
+	modImplementation include("rocks.blackblock:blackblock-bib:${constructVersion(project.blackblock_bib_version)}")
 }
 
 processResources {
@@ -65,8 +150,7 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	// Minecraft 1.18 (1.18-pre2) upwards uses Java 17.
-	it.options.release = 17
+	it.options.release = 21
 }
 
 java {
@@ -82,12 +166,12 @@ jar {
 	}
 }
 
-def env = System.getenv()
-
 // configure the maven publication
 publishing {
 	publications {
-		mavenJava(MavenPublication) {
+		create("mavenJava", MavenPublication) {
+			artifactId = archives_base_name
+
 			// add all the jars that should be included when publishing to maven
 			artifact(remapJar) {
 				builtBy remapJar
@@ -105,16 +189,23 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 		repositories {
-			if (env.MAVEN_URL) {
+			if (envVars.MAVEN_URL) {
 				maven {
 					credentials {
-						username env.MAVEN_USERNAME
-						password env.MAVEN_PASSWORD
+						username envVars.MAVEN_USERNAME
+						password envVars.MAVEN_PASSWORD
 					}
-					url env.MAVEN_URL
+					url envVars.MAVEN_URL
 				}
 			} else {
 				mavenLocal()
+			}
+
+			if (isDevelopment && localRepoDir) {
+				maven {
+					name = 'local'
+					url = uri(localRepoDir)
+				}
 			}
 		}
 	}

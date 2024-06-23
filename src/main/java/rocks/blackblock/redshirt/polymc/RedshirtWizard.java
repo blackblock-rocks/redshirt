@@ -5,7 +5,7 @@ import io.github.theepicblock.polymc.api.wizard.UpdateInfo;
 import io.github.theepicblock.polymc.api.wizard.WizardInfo;
 import io.github.theepicblock.polymc.impl.poly.entity.EntityWizard;
 import net.minecraft.text.Text;
-import rocks.blackblock.core.BlackBlockCore;
+import rocks.blackblock.bib.util.BibFlow;
 import rocks.blackblock.redshirt.npc.RedshirtEntity;
 
 /**
@@ -109,7 +109,7 @@ public class RedshirtWizard<T extends RedshirtEntity> extends EntityWizard<T> {
      * @since    0.4.0
      */
     public void scheduleRemovePacket() {
-        BlackBlockCore.onTickTimeout(this.virtual_player::makeDirty, 20);
+        BibFlow.onTickTimeout(this.virtual_player::makeDirty, 20);
     }
 
     /**

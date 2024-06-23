@@ -29,8 +29,8 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.NotNull;
-import rocks.blackblock.core.BlackBlockCore;
-import rocks.blackblock.core.utils.BBLog;
+import rocks.blackblock.bib.util.BibLog;
+import rocks.blackblock.bib.util.BibServer;
 import rocks.blackblock.redshirt.entity.FakeRedshirtPlayer;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerEntityAccessor;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerListS2CPacketAccessor;
@@ -46,10 +46,10 @@ import java.util.UUID;
  * @author   Jelle De Loecker   <jelle@elevenways.be>
  * @since    0.4.0
  */
-public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argable {
+public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argable {
 
-    // The BBLog logger (that is optionally enabled)
-    private static final BBLog.Categorised LOGGER = BBLog.getCategorised("redshirt", "skinhelper");
+    // The BibLog logger (that is optionally enabled)
+    private static final BibLog.Categorised LOGGER = BibLog.getCategorised("redshirt", "skinhelper");
 
     // The "empty" name for the entity
     public static final String EMPTY_PLAYER_NAME = "\u0020";
@@ -227,7 +227,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
      * @since    0.4.0
      */
     public FakeRedshirtPlayer getNewFakePlayer() {
-        return new FakeRedshirtPlayer(BlackBlockCore.getServer().getOverworld(), this.profile);
+        return new FakeRedshirtPlayer(BibServer.getServer().getOverworld(), this.profile);
     }
 
     /**
@@ -327,12 +327,12 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
     public void setSkin(String value, String signature) {
 
         if (LOGGER.isEnabled()) {
-            BBLog.attention("Setting skin of VPlayerEntity " + this.getNameString());
+            BibLog.attention("Setting skin of VPlayerEntity " + this.getNameString());
 
             if (value == null) {
-                BBLog.log(" -- Skin value is null!!!");
+                BibLog.log(" -- Skin value is null!!!");
             } else {
-                BBLog.log(" -- Value is " + value.length() + " chars long");
+                BibLog.log(" -- Value is " + value.length() + " chars long");
             }
         }
 
@@ -351,7 +351,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
     private void updateSkinInGameProfile() {
 
         if (LOGGER.isEnabled()) {
-            BBLog.log(" -- Updating skin of", this);
+            BibLog.log(" -- Updating skin of", this);
         }
 
         PropertyMap profile_properties = this.profile.getProperties();
@@ -484,32 +484,21 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
      */
     protected Packet<?> createSpawnPacket(double x, double y, double z, float yaw, float pitch) {
 
-        PacketByteBuf buffer = PacketByteBufs.create();
-        buffer.writeVarInt(this.id);
+        var result = new EntitySpawnS2CPacket(
+                this.id,
+                this.uuid,
+                x,
+                y,
+                z,
+                pitch,
+                yaw,
+                EntityType.PLAYER,
+                0,
+                Vec3d.ZERO,
+                this.entity.getHeadYaw()
+        );
 
-        // Use random uuid? MathHelper.randomUuid()
-        buffer.writeUuid(this.uuid);
-        buffer.writeRegistryValue(Registries.ENTITY_TYPE, EntityType.PLAYER);
-        buffer.writeDouble(x);
-        buffer.writeDouble(y);
-        buffer.writeDouble(z);
-        buffer.writeByte((byte)((int)(pitch * 256.0F / 360.0F)));
-        buffer.writeByte((byte)((int)(yaw * 256.0F / 360.0F)));
-
-        float head_yaw = this.entity.getHeadYaw();
-        buffer.writeByte((byte) MathHelper.floor(head_yaw * 256.0 / 360.0));
-
-        // Entity data?
-        buffer.writeVarInt(0);
-
-        // Velocity
-        buffer.writeShort(0);
-        buffer.writeShort(0);
-        buffer.writeShort(0);
-
-        buffer.resetReaderIndex();
-
-        return new EntitySpawnS2CPacket(buffer);
+        return result;
     }
 
     /**
@@ -595,7 +584,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
      */
     protected boolean registerWithClient(PacketConsumer players) {
 
-        if (!BlackBlockCore.isReady()) {
+        if (!BibServer.isReady()) {
             this.increaseGlobalSpawnPacketRequirement(1);
             return false;
         }
@@ -635,7 +624,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
         PublicPlayerSession.Serialized chatSession = null;
 
         if (LOGGER.isEnabled() && !this.profile.getProperties().containsKey("textures")) {
-            BBLog.attention("No textures found for " + this.uuid);
+            BibLog.attention("No textures found for " + this.uuid);
         }
 
         // Send the player info
@@ -755,8 +744,8 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BBLog.Argabl
      * @since    1.5.1
      */
     @Override
-    public BBLog.Arg toBBLogArg() {
-        return BBLog.createArg(this)
+    public BibLog.Arg toBBLogArg() {
+        return BibLog.createArg(this)
             .add("name", this.name)
             .add("uuid", this.uuid)
             .add("id", this.id)

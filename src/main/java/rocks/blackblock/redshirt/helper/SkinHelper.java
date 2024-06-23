@@ -3,8 +3,9 @@ package rocks.blackblock.redshirt.helper;
 import com.google.gson.JsonObject;
 import com.mojang.authlib.properties.Property;
 import org.jetbrains.annotations.Nullable;
-import rocks.blackblock.core.utils.BBLog;
-import rocks.blackblock.core.utils.JsonHelper;
+import rocks.blackblock.bib.collection.LRUCache;
+import rocks.blackblock.bib.util.BibJson;
+import rocks.blackblock.bib.util.BibLog;
 import rocks.blackblock.redshirt.Redshirt;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -28,7 +29,7 @@ import java.util.concurrent.Executors;
  */
 public class SkinHelper {
 
-    private static final BBLog.Categorised LOGGER = BBLog.getCategorised("redshirt", "skinhelper");
+    private static final BibLog.Categorised LOGGER = BibLog.getCategorised("redshirt", "skinhelper");
 
     private static final ExecutorService THREADPOOL = Executors.newCachedThreadPool();
     private static final LRUCache<String, Property> SKIN_CACHE = new LRUCache<>(25);
@@ -95,7 +96,7 @@ public class SkinHelper {
 
             // Only cache successful skin requests
             if (result == null) {
-                BBLog.error("Failed to get skin from '" + skin_source + "'");
+                BibLog.error("Failed to get skin from '" + skin_source + "'");
             } else {
                 SKIN_CACHE.put(key, result);
             }
@@ -196,7 +197,7 @@ public class SkinHelper {
             return null;
         }
 
-        JsonObject obj = JsonHelper.parse(reply);
+        JsonObject obj = BibJson.parse(reply);
 
         if (obj.has("error") && obj.get("error").getAsBoolean()) {
             return null;

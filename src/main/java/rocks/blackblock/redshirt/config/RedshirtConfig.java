@@ -2,8 +2,7 @@ package rocks.blackblock.redshirt.config;
 
 import com.google.gson.JsonObject;
 import org.jetbrains.annotations.NotNull;
-import rocks.blackblock.core.config.Config;
-import rocks.blackblock.core.utils.BBLog;
+import rocks.blackblock.bib.config.Config;
 
 public class RedshirtConfig extends Config {
 
