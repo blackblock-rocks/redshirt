@@ -1,5 +1,6 @@
 package rocks.blackblock.redshirt.config;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.jetbrains.annotations.NotNull;
 import rocks.blackblock.bib.config.Config;
@@ -29,7 +30,11 @@ public class RedshirtConfig extends Config {
     @Override
     protected void parseConfig(@NotNull JsonObject data) {
         this.ready = true;
-        rincemaft_api_endpoint = data.get("rincemaft_endpoint").getAsString();
+        JsonElement endpoint_element = data.get("rincemaft_endpoint");
+
+        if (endpoint_element != null && endpoint_element.isJsonPrimitive()) {
+            rincemaft_api_endpoint = data.get("rincemaft_endpoint").getAsString();
+        }
     }
 
     /**

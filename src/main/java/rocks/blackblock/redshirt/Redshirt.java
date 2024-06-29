@@ -25,7 +25,7 @@ import java.util.List;
 public class Redshirt implements ModInitializer {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger("redshirt");
-	public static final Identifier NPC_ID = new Identifier("redshirt", "npc");
+	public static final Identifier NPC_ID = Identifier.of("redshirt", "npc");
 	public static final List<Identifier> REDSHIRT_TYPE_IDENTIFIERS = new ArrayList<>();
 	public static final List<EntityType<? extends RedshirtEntity>> REDSHIRT_TYPES = new ArrayList<>();
 	public static MinecraftDedicatedServer SERVER = null;

@@ -16,7 +16,7 @@ import java.util.Map;
 @Mixin(RegistrySyncManager.class)
 public class RegistryMixin_RemoveRedshirts {
 
-    private static final Identifier ENTITY_TYPE = new Identifier("minecraft", "entity_type");
+    private static final Identifier ENTITY_TYPE = Identifier.ofVanilla("entity_type");
 
     /**
      * Removes all redshirt tags from registry sync, as we do not need it on client.
@@ -29,7 +29,12 @@ public class RegistryMixin_RemoveRedshirts {
             locals = LocalCapture.CAPTURE_FAILHARD,
             remap = false
     )
-    private static void removeRedshirtsFromSync(boolean isClientSync, @Nullable Map<Identifier, Object2IntMap<Identifier>> activeMap, CallbackInfoReturnable<@Nullable Map<Identifier, Object2IntMap<Identifier>>> cir, Map<Identifier, Object2IntMap<Identifier>> map) {
+    private static void removeRedshirtsFromSync(CallbackInfoReturnable<Map<Identifier, Object2IntMap<Identifier>>> cir, Map<Identifier, Object2IntMap<Identifier>> map) {
+
+        // @TODO: See if this class is still needed
+        //  and if it is, fix isClientSync no longer existing in the mixed in target
+        boolean isClientSync = false;
+
         if (isClientSync) {
             var entity_map = map.get(ENTITY_TYPE);
 
@@ -38,5 +43,4 @@ public class RegistryMixin_RemoveRedshirts {
             }
         }
     }
-
 }
