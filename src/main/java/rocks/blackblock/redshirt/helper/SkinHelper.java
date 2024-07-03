@@ -74,6 +74,13 @@ public class SkinHelper {
         if (rincemaft_endpoint == null) {
             Redshirt.CONFIG.afterLoad(() -> {
                 rincemaft_endpoint = Redshirt.CONFIG.getRincemaftEndpoint();
+
+                // If there still is no endpoint, the configuration has none
+                if (rincemaft_endpoint == null) {
+                    callback.onResult(null);
+                    return;
+                }
+
                 getSkin(skin_source, use_slim, callback);
             });
 
