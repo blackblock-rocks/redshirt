@@ -585,11 +585,6 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
             return false;
         }
 
-        if (this.skin_value == null && this.updates_without_skin < 10) {
-            this.increaseGlobalSpawnPacketRequirement(1);
-            return false;
-        }
-
         PlayerListS2CPacket packet = this.createClientRegisterPacket();
         players.sendPacket(packet);
 
