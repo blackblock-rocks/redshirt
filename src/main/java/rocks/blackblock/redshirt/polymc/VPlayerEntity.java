@@ -11,7 +11,10 @@ import io.github.theepicblock.polymc.impl.poly.wizard.EntityUtil;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.attribute.EntityAttributeInstance;
+import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.encryption.PublicPlayerSession;
 import net.minecraft.network.packet.Packet;
@@ -22,6 +25,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.PlainTextContent;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextContent;
+import net.minecraft.util.Arm;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.NotNull;
@@ -34,6 +38,7 @@ import rocks.blackblock.screenbuilder.text.Font;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -45,7 +50,7 @@ import java.util.UUID;
 public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argable {
 
     // The BibLog logger (that is optionally enabled)
-    private static final BibLog.Categorised LOGGER = BibLog.getCategorised("redshirt", "skinhelper");
+    private static final BibLog.Categorised LOGGER = BibLog.getCategorised("redshirt", "skinhelper", "vplayerentity");
 
     // The "empty" name for the entity
     public static final String EMPTY_PLAYER_NAME = "\u0020";
@@ -614,10 +619,6 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
         // There will be no chat session
         PublicPlayerSession.Serialized chatSession = null;
 
-        if (LOGGER.isEnabled() && !this.profile.getProperties().containsKey("textures")) {
-            BibLog.attention("No textures found for " + this.uuid);
-        }
-
         // Send the player info
         PlayerListS2CPacket player_add_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.ADD_PLAYER, fake_player);
         ((PlayerListS2CPacketAccessor) player_add_packet).setEntries(
@@ -681,7 +682,33 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
         }
 
         if (LOGGER.isEnabled()) {
-            LOGGER.log("Sending datatracker updates of", this, "to", players);
+            LOGGER.log("Queueing DataTracker updates of", this, "to", players);
+        }
+
+        var tracker = this.entity.getDataTracker();
+        var dirty_entries = tracker.getDirtyEntries();
+
+        if (dirty_entries != null) {
+            // A Player and a LivingEntity have all entries up to id 14 in common
+            // The rest should be removed
+            dirty_entries.removeIf(serializedEntry -> serializedEntry.id() >= 15);
+
+            var update_packet = new EntityTrackerUpdateS2CPacket(this.entity.getId(), dirty_entries);
+
+            if (this.entity instanceof MobEntity mob) {
+                // Mobs & players can be left-handed, but they don't share the same data tracker id
+                if (mob.isLeftHanded()) {
+                    var entry = DataTracker.SerializedEntry.of(PlayerEntityAccessor.getMAIN_ARM(), (byte) Arm.LEFT.getId());
+                    dirty_entries.add(entry);
+                }
+            }
+
+            players.sendPacket(update_packet);
+        }
+
+        Set<EntityAttributeInstance> set = this.entity.getAttributes().getTracked();
+        if (!set.isEmpty()) {
+            players.sendPacket(new EntityAttributesS2CPacket(this.entity.getId(), set));
         }
     }
 

@@ -4,6 +4,7 @@ import io.github.theepicblock.polymc.api.wizard.PacketConsumer;
 import io.github.theepicblock.polymc.api.wizard.UpdateInfo;
 import io.github.theepicblock.polymc.api.wizard.WizardInfo;
 import io.github.theepicblock.polymc.impl.poly.entity.EntityWizard;
+import net.minecraft.entity.data.DataTracker;
 import net.minecraft.text.Text;
 import rocks.blackblock.bib.util.BibFlow;
 import rocks.blackblock.redshirt.npc.RedshirtEntity;
@@ -32,6 +33,16 @@ public class RedshirtWizard<T extends RedshirtEntity> extends EntityWizard<T> {
 
         // And inform the entity this is now the wizard
         entity.setWizard(this);
+    }
+
+    /**
+     * Force a data tracker update
+     *
+     * @since    0.5.0
+     */
+    public void syncEntityData(PacketConsumer players) {
+        this.virtual_player.scheduleDataTrackerUpdate();
+        this.virtual_player.sendDataTrackerUpdate(players);
     }
 
     /**
