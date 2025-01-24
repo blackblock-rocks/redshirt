@@ -7,11 +7,13 @@ import net.minecraft.entity.*;
 import net.minecraft.entity.ai.RangedAttackMob;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.boss.WitherEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ArmorItem;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -475,10 +477,9 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     public static DefaultAttributeContainer.Builder createDefaultAttributes() {
         return MobEntity.createMobAttributes()
-                .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 3.25D)
-                .add(EntityAttributes.GENERIC_ARMOR, 2.0D)
-                .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.2505D)
-                .add(EntityAttributes.GENERIC_FLYING_SPEED, 0.8D)
-                .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 35.0D);
+                .add(EntityAttributes.ATTACK_DAMAGE, 3.25D)
+                .add(EntityAttributes.MOVEMENT_SPEED, 0.2505D)
+                .add(EntityAttributes.FLYING_SPEED, 0.8D)
+                .add(EntityAttributes.FOLLOW_RANGE, 35.0D);
     }
 }

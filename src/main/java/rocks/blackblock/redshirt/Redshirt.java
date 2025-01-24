@@ -9,6 +9,8 @@ import net.minecraft.entity.SpawnGroup;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.dedicated.MinecraftDedicatedServer;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -67,13 +69,15 @@ public class Redshirt implements ModInitializer {
 			DefaultAttributeContainer.Builder builder
 	) {
 
+		var key = RegistryKey.of(RegistryKeys.ENTITY_TYPE, entity_id);
+
 		EntityType<TRedshirtEntity> NEW_ENTITY_TYPE = Registry.register(
 				Registries.ENTITY_TYPE,
 				entity_id,
 				FabricEntityTypeBuilder
 						.create(SpawnGroup.MISC, entity_factory)
 						.dimensions(EntityDimensions.fixed(0.6F, 1.8F))
-						.build()
+						.build(key)
 		);
 
 		FabricDefaultAttributeRegistry.register(NEW_ENTITY_TYPE, builder);

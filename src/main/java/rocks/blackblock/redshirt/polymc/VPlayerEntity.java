@@ -622,7 +622,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
         // Send the player info
         PlayerListS2CPacket player_add_packet = new PlayerListS2CPacket(PlayerListS2CPacket.Action.ADD_PLAYER, fake_player);
         ((PlayerListS2CPacketAccessor) player_add_packet).setEntries(
-                List.of(new PlayerListS2CPacket.Entry(this.uuid, this.profile, listed, ping, GameMode.SURVIVAL, this.name, chatSession))
+                List.of(new PlayerListS2CPacket.Entry(this.uuid, this.profile, listed, ping, GameMode.SURVIVAL, this.name, true, 99, chatSession))
         );
 
         return player_add_packet;
