@@ -7,14 +7,13 @@ import net.minecraft.entity.*;
 import net.minecraft.entity.ai.RangedAttackMob;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.boss.WitherEntity;
 import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ArmorItem;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerChunkLoadingManager;
@@ -122,17 +121,16 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @since    0.1.0
      */
     @Override
-    public void writeCustomDataToNbt(NbtCompound nbt) {
-        super.writeCustomDataToNbt(nbt);
+    protected void writeCustomData(WriteView view) {
+        super.writeCustomData(view);
 
         if (this.skin_source != null) {
-            nbt.putString("skin_source", this.skin_source);
+            view.putString("skin_source", this.skin_source);
 
             if (this.skin_value != null && this.skin_signature != null) {
-                NbtCompound skin_data = new NbtCompound();
+                WriteView skin_data = view.get("skin_data");
                 skin_data.putString("value", this.skin_value);
                 skin_data.putString("signature", this.skin_signature);
-                nbt.put("skin_data", skin_data);
             }
         }
     }
@@ -144,9 +142,9 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @since    0.1.0
      */
     @Override
-    public void readNbt(NbtCompound nbt) {
+    public void readData(ReadView view) {
         this.from_nbt = true;
-        super.readNbt(nbt);
+        super.readData(view);
     }
 
     /**
@@ -156,21 +154,18 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @since    0.1.0
      */
     @Override
-    public void readCustomDataFromNbt(NbtCompound nbt) {
-        super.readCustomDataFromNbt(nbt);
+    protected void readCustomData(ReadView view) {
+        super.readCustomData(view);
 
-        if (nbt.contains("skin_source")) {
+        view.getOptionalString("skin_source").ifPresent(skin_source -> {
+            this.skin_source = skin_source;
 
-            if (nbt.contains("skin_data")) {
-                this.setSkinFromNbt(nbt.getCompound("skin_data"));
-            }
-
-            this.skin_source = nbt.getString("skin_source");
+            view.getOptionalReadView("skin_data").ifPresent(this::setSkinFromView);
 
             if (this.skin_value == null) {
                 this.setSkin(this.skin_source);
             }
-        }
+        });
     }
 
     @Override
@@ -246,11 +241,9 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
                 BibLog.log("Setting skin for " + this.getNameForScoreboard() + " to " + value);
             }
 
-            NbtCompound skin_nbt = new NbtCompound();
-            skin_nbt.putString("value", value);
-            skin_nbt.putString("signature", signature);
+            this.setSkinFromValuesWithoutUpdate(value, signature);
 
-            this.setSkinFromNbt(skin_nbt);
+            this.sendProfileUpdates();
         });
     }
 
@@ -283,35 +276,55 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      * @author  Jelle De Loecker   <jelle@elevenways.be>
      * @since   0.1.0
      *
-     * @param   skin_nbt   The NBT compound with skin data
+     * @param   skin_view   The ReadView with skin data
      */
-    public void setSkinFromNbt(NbtCompound skin_nbt) {
+    public void setSkinFromView(ReadView skin_view) {
 
         this.skin_value = null;
         this.skin_signature = null;
 
         // Setting the skin
         try {
-            String value = skin_nbt.getString("value");
-            String signature = skin_nbt.getString("signature");
+            String value = skin_view.getString("value", "");
+            String signature = skin_view.getString("signature", "");
 
-            if (value != null && !value.isBlank()) {
-                this.skin_value = value;
-            }
-
-            if (signature != null && !signature.isBlank()) {
-                this.skin_signature = signature;
-            }
-
-            if (this.wizard != null && this.skin_value != null && this.skin_signature != null) {
-                this.wizard.setSkin(this.skin_value, this.skin_signature);
-            }
+            this.setSkinFromValuesWithoutUpdate(value, signature);
 
         } catch (Error ignored) {
-            BibLog.error("Error setting skin from NBT:", ignored);
+            BibLog.error("Error setting skin from View:", ignored);
         }
 
         this.sendProfileUpdates();
+    }
+
+    /**
+     * Set the skin from value & signature
+     *
+     * @since   0.8.0
+     *
+     * @param   skin_view   The ReadView with skin data
+     */
+    protected void setSkinFromValuesWithoutUpdate(String value, String signature) {
+
+        if (value == null) {
+            value = "";
+        }
+
+        if (signature == null) {
+            signature = "";
+        }
+
+        if (!value.isBlank()) {
+            this.skin_value = value;
+        }
+
+        if (!signature.isBlank()) {
+            this.skin_signature = signature;
+        }
+
+        if (this.wizard != null && this.skin_value != null && this.skin_signature != null) {
+            this.wizard.setSkin(this.skin_value, this.skin_signature);
+        }
     }
 
     /**
@@ -458,7 +471,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     public static RedshirtEntity create(ServerPlayerEntity player, String name) {
 
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getWorld();
 
         // Create the NPC
         RedshirtEntity npc = new RedshirtEntity(REDSHIRT_TYPE, player.getWorld());

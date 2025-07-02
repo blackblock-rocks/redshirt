@@ -394,6 +394,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
      * @since    0.4.0
      */
     @Override
+    @Deprecated
     public void spawn(PacketConsumer player, Vec3d pos) {
         this.sendToConsumers(player, pos);
     }
@@ -405,6 +406,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
      * @since    0.4.0
      */
     @Override
+    @Deprecated
     public void spawn(PacketConsumer players, Vec3d pos, float pitch, float yaw, int entityData, Vec3d velocity) {
         this.sendToConsumers(players, pos, pitch, yaw, entityData, velocity);
     }
