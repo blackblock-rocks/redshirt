@@ -8,6 +8,7 @@
         "TACSMixin_RedshirtList",
         "accessors.EntityTrackerEntryAccessor",
         "accessors.PlayerEntityAccessor",
+        "accessors.PlayerLikeEntityAccessor",
         "accessors.PlayerListS2CPacketAccessor",
         "accessors.TACSAccessor"
     ],

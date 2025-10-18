@@ -260,7 +260,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
     public NbtCompound getSkinNbt(GameProfile profile) {
         NbtCompound skin_nbt = new NbtCompound();
         try {
-            PropertyMap propertyMap = profile.getProperties();
+            PropertyMap propertyMap = profile.properties();
             Property skin = propertyMap.get("textures").iterator().next();
 
             skin_nbt.putString("value", skin.value());
@@ -335,7 +335,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     public void sendProfileUpdates() {
 
-        if (this.getWorld().isClient()) {
+        if (this.getEntityWorld().isClient()) {
             return;
         }
 
@@ -343,7 +343,7 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
             this.wizard.markDirty();
         }
 
-        ServerChunkManager chunkManager = (ServerChunkManager) this.getWorld().getChunkManager();
+        ServerChunkManager chunkManager = (ServerChunkManager) this.getEntityWorld().getChunkManager();
         ServerChunkLoadingManager chunkStorage = chunkManager.chunkLoadingManager;
 
         EntityTrackerEntryAccessor trackerEntry = ((TACSAccessor) chunkStorage).getEntityTrackers().get(this.getId());
@@ -471,12 +471,12 @@ public class RedshirtEntity extends PathAwareEntity implements CrossbowUser, Ran
      */
     public static RedshirtEntity create(ServerPlayerEntity player, String name) {
 
-        ServerWorld world = player.getWorld();
+        ServerWorld world = player.getEntityWorld();
 
         // Create the NPC
-        RedshirtEntity npc = new RedshirtEntity(REDSHIRT_TYPE, player.getWorld());
+        RedshirtEntity npc = new RedshirtEntity(REDSHIRT_TYPE, player.getEntityWorld());
 
-        Vec3d pos = player.getPos();
+        Vec3d pos = player.getEntityPos();
 
         npc.updatePositionAndAngles(pos.getX(), pos.getY(), pos.getZ(), player.getYaw(), player.getPitch());
         npc.setHeadYaw(player.getHeadYaw());

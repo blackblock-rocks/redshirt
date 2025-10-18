@@ -36,7 +36,7 @@ public class Commands {
 
             try {
                 RedshirtEntity npc = RedshirtEntity.create(player, npc_name);
-                player.getWorld().spawnEntity(npc);
+                player.getEntityWorld().spawnEntity(npc);
 
             } catch (Exception e) {
                 System.out.println("Error: " + e.getMessage());

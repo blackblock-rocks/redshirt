@@ -33,6 +33,7 @@ import rocks.blackblock.bib.util.BibLog;
 import rocks.blackblock.bib.util.BibServer;
 import rocks.blackblock.redshirt.entity.FakeRedshirtPlayer;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerEntityAccessor;
+import rocks.blackblock.redshirt.mixin.accessors.PlayerLikeEntityAccessor;
 import rocks.blackblock.redshirt.mixin.accessors.PlayerListS2CPacketAccessor;
 import rocks.blackblock.screenbuilder.text.Font;
 
@@ -355,7 +356,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
             BibLog.log(" -- Updating skin of", this);
         }
 
-        PropertyMap profile_properties = this.profile.getProperties();
+        PropertyMap profile_properties = this.profile.properties();
 
         String value = this.skin_value;
         String signature = this.skin_signature;
@@ -451,7 +452,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
         players.sendPacket(this.createSpawnPacket(pos.getX(), pos.getY(), pos.getZ(), yaw, pitch));
 
         // Make sure all the skin layers are rendered
-        this.sendTrackedDataUpdate(players, PlayerEntityAccessor.getPLAYER_MODEL_PARTS(), (byte) 0x7f);
+        this.sendTrackedDataUpdate(players, PlayerLikeEntityAccessor.getPLAYER_MODE_CUSTOMIZATION_ID(), (byte) 0x7f);
 
         // Send the equipment packets too
         this.sendEquipmentPacket(players);
@@ -700,7 +701,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
             if (this.entity instanceof MobEntity mob) {
                 // Mobs & players can be left-handed, but they don't share the same data tracker id
                 if (mob.isLeftHanded()) {
-                    var entry = DataTracker.SerializedEntry.of(PlayerEntityAccessor.getMAIN_ARM(), (byte) Arm.LEFT.getId());
+                    var entry = DataTracker.SerializedEntry.of(PlayerLikeEntityAccessor.getMAIN_ARM(), (byte) Arm.LEFT.getId());
                     dirty_entries.add(entry);
                 }
             }
@@ -735,7 +736,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
         }
 
         if (this.consumeGlobalSpawnPacketRequirement()) {
-            this.addConsumers(players, this.entity.getPos());
+            this.addConsumers(players, this.entity.getEntityPos());
         }
 
         if (this.needs_datatracker_update) {

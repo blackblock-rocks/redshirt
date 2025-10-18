@@ -62,7 +62,7 @@ public class RedshirtWizard<T extends RedshirtEntity> extends EntityWizard<T> {
      */
     @Override
     public void addPlayer(PacketConsumer packetConsumer) {
-        this.virtual_player.addConsumers(packetConsumer, this.getEntity().getPos());
+        this.virtual_player.addConsumers(packetConsumer, this.getEntity().getEntityPos());
     }
 
     /**
