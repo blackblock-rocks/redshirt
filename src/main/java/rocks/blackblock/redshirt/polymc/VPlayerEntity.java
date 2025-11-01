@@ -29,6 +29,7 @@ import net.minecraft.util.Arm;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.NotNull;
+import rocks.blackblock.bib.monitor.GlitchGuru;
 import rocks.blackblock.bib.util.BibLog;
 import rocks.blackblock.bib.util.BibServer;
 import rocks.blackblock.redshirt.entity.FakeRedshirtPlayer;
@@ -364,7 +365,12 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
         if (value != null & signature != null && !value.isEmpty() && !signature.isEmpty()) {
             profile_properties.put("textures", new Property("textures", value, signature));
         } else {
-            profile_properties.removeAll("textures");
+            try {
+                profile_properties.removeAll("textures");
+            } catch (Exception e) {
+                BibLog.error("Error removing textures from profile in VPlayerEntity");
+                GlitchGuru.registerThrowable(e);
+            }
         }
 
         if (LOGGER.isEnabled()) {
