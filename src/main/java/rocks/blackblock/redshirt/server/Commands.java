@@ -5,6 +5,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.command.permission.Permission;
+import net.minecraft.command.permission.PermissionLevel;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -23,7 +25,7 @@ public class Commands {
 
     private static void addCommands(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, CommandManager.RegistrationEnvironment environment) {
 
-        LiteralArgumentBuilder<ServerCommandSource> redshirt = literal("redshirt").requires(source -> source.hasPermissionLevel(2));
+        LiteralArgumentBuilder<ServerCommandSource> redshirt = literal("redshirt").requires(source -> source.getPermissions().hasPermission(new Permission.Level(PermissionLevel.fromLevel(2))));
         LiteralArgumentBuilder<ServerCommandSource> create = literal("create");
         LiteralArgumentBuilder<ServerCommandSource> list = literal("list");
         var name = CommandManager.argument("name", StringArgumentType.greedyString());

@@ -707,7 +707,7 @@ public class VPlayerEntity extends AbstractVirtualEntity implements BibLog.Argab
             if (this.entity instanceof MobEntity mob) {
                 // Mobs & players can be left-handed, but they don't share the same data tracker id
                 if (mob.isLeftHanded()) {
-                    var entry = DataTracker.SerializedEntry.of(PlayerLikeEntityAccessor.getMAIN_ARM(), (byte) Arm.LEFT.getId());
+                    var entry = DataTracker.SerializedEntry.of(PlayerLikeEntityAccessor.getMAIN_ARM(), (byte) Arm.LEFT.ordinal());
                     dirty_entries.add(entry);
                 }
             }
